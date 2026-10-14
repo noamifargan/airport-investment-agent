@@ -13,7 +13,7 @@ def soql(domain: str, dataset: str, params: dict[str, str], *, max_rows: int = 2
     first_url = ""
     offset = 0
     while True:
-        page = {**params, "$limit": str(PAGE), "$offset": str(offset)}
+        page = {"$limit": str(PAGE), **params, "$offset": str(offset)}
         resp = get_with_retry(f"https://{domain}/resource/{dataset}.json", params=page)
         first_url = first_url or str(resp.url)
         batch = resp.json()
