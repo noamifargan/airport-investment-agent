@@ -39,6 +39,10 @@ Example questions:
 Each answer shows the tools the agent called, then the answer, then the data sources (with live/cache status and
 data period) and the assumptions behind the numbers.
 
+**Voice:** click the microphone next to **Ask**, speak your question, then click it again (Esc cancels). The recording
+is transcribed on the server by a local Whisper model (`faster-whisper`, downloaded once, ~140 MB) and asked
+automatically. Browsers only allow microphone access on `localhost` or `https` pages.
+
 ## Configuration
 
 Set these as environment variables or in `backend/.env` (see `backend/.env.example`):
@@ -50,13 +54,15 @@ Set these as environment variables or in `backend/.env` (see `backend/.env.examp
 | `OFFLINE` | `0` | `1` = no network; answer from the disk cache only |
 | `AIRPORT_AGENT_DATA_DIR` | `backend/data` | Cache location |
 | `AIRPORT_AGENT_FRONTEND_DIR` | `frontend` | Web page the server serves |
+| `WHISPER_MODEL` | `base.en` | Local speech-to-text model for voice questions (`small.en` is more accurate, slower) |
 
 ## Project layout
 
 ```
 backend/                     Python project (uv): API server, agent, data, analytics
   src/airport_agent/
-    api/app.py               FastAPI: chat stream (NDJSON), scoring weights; serves the frontend
+    api/app.py               FastAPI: chat stream (NDJSON), voice transcription, scoring weights; serves the frontend
+    voice.py                 local speech-to-text (faster-whisper)
     agent/                   tools, Ollama client, agent loop
     analytics/               runway capacity, KPI table, scores, curated constraints
     data/store.py            fetch-with-fallback cache + provenance

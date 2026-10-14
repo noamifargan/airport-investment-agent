@@ -40,6 +40,7 @@ class Settings:
         default_factory=lambda: Path(os.environ.get("AIRPORT_AGENT_DATA_DIR", PROJECT_ROOT / "data")).resolve()
     )
     http_timeout: float = field(default_factory=lambda: float(os.environ.get("HTTP_TIMEOUT", "60")))
+    whisper_model: str = field(default_factory=lambda: os.environ.get("WHISPER_MODEL", "base.en"))
     frontend_dir: Path = field(
         default_factory=lambda: Path(os.environ.get("AIRPORT_AGENT_FRONTEND_DIR", REPO_ROOT / "frontend")).resolve()
     )

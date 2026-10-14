@@ -77,7 +77,7 @@ a:hover { color: var(--blue-strong); }
 .chart-symbol .plane { fill: var(--blue); }
 
 /* ---------- composer ---------- */
-.composer { display: flex; gap: 10px; align-items: flex-end; max-width: 720px; }
+.composer { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; max-width: 760px; }
 .composer textarea {
   flex: 1; min-height: 56px; max-height: 200px; resize: none; padding: 15px 16px;
   font: 400 17px/1.5 var(--font-body); color: var(--ink); background: var(--paper-raised);
@@ -90,6 +90,17 @@ a:hover { color: var(--blue-strong); }
   border: 0; border-radius: 8px; cursor: pointer;
 }
 .btn-primary:hover { background: var(--blue-strong); }
+.btn-mic {
+  height: 56px; min-width: 56px; padding: 0 15px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  color: var(--blue); background: var(--paper-raised); border: 1.5px solid var(--ink-soft); border-radius: 8px; cursor: pointer;
+  font: 600 14px/1 var(--font-body); font-variant-numeric: tabular-nums;
+}
+.btn-mic svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.btn-mic:hover { border-color: var(--blue); }
+.btn-mic[data-state="recording"] { color: #fff; background: var(--magenta); border-color: var(--magenta); animation: rec 1.6s ease-in-out infinite; }
+.btn-mic[data-state="working"] { opacity: .55; cursor: progress; }
+@keyframes rec { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--magenta) 45%, transparent); } 50% { box-shadow: 0 0 0 9px transparent; } }
+.voice-status { flex-basis: 100%; margin: 2px 0 0; font-size: 14px; color: var(--ink-soft); }
 .btn-primary:disabled { opacity: .55; cursor: progress; }
 @media (prefers-color-scheme: dark) { .btn-primary { color: #0f1828; } }
 /* once a conversation starts the composer docks at the bottom of the thread column */
@@ -195,12 +206,12 @@ body.chatting .start { display: none; }
   .brand span { font-size: 14px; }
   .btn-quiet { padding: 8px 10px; font-size: 13px; }
   .composer { flex-direction: column; align-items: stretch; }
-  .btn-primary { height: 48px; }
+  .btn-primary, .btn-mic { height: 48px; }
   .strip { grid-template-columns: minmax(0, 1fr); }
   .strip > span { border-left: 0; padding: 4px 10px; }
   .q { font-size: 20px; }
 }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  .progress::before { animation: none; }
+  .progress::before, .btn-mic[data-state="recording"] { animation: none; }
 }

@@ -175,6 +175,86 @@ async function ask(question) {
   }
 }
 
+/* ---------- voice input: record in the browser, transcribe with local Whisper, then ask ---------- */
+const micBtn = $("#mic-btn"), micTime = $("#mic-time"), voiceStatus = $("#voice-status");
+const MAX_RECORDING_MS = 60000;
+let recorder = null, recStream = null, recChunks = [], recStart = 0, recTimer = null, recCancelled = false;
+
+function setVoice(state, message) {
+  micBtn.dataset.state = state;
+  const label = state === "recording" ? "Stop recording and ask" : "Ask by voice";
+  micBtn.setAttribute("aria-label", label);
+  micBtn.title = label;
+  micTime.hidden = state !== "recording";
+  voiceStatus.hidden = !message;
+  voiceStatus.textContent = message || "";
+}
+
+async function startRecording() {
+  if (busy) { setVoice("idle", "Wait for the current answer to finish, then ask your next question."); return; }
+  if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+    setVoice("idle", "Voice input needs microphone access, which browsers only allow on localhost or https pages.");
+    return;
+  }
+  try {
+    recStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (err) {
+    setVoice("idle", err.name === "NotAllowedError"
+      ? "Microphone access is blocked. Allow it in the browser's site settings, or type your question."
+      : "No microphone was found. Type your question instead.");
+    return;
+  }
+  recChunks = [];
+  recCancelled = false;
+  recorder = new MediaRecorder(recStream);
+  recorder.ondataavailable = (e) => { if (e.data.size) recChunks.push(e.data); };
+  recorder.onstop = sendRecording;
+  recorder.start();
+  recStart = Date.now();
+  micTime.textContent = "0:00";
+  recTimer = setInterval(() => {
+    const secs = Math.floor((Date.now() - recStart) / 1000);
+    micTime.textContent = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
+    if (Date.now() - recStart > MAX_RECORDING_MS) stopRecording();
+  }, 250);
+  setVoice("recording", "Listening. Click the microphone again when you've finished, or press Esc to cancel.");
+}
+
+function stopRecording(cancel = false) {
+  recCancelled = cancel;
+  clearInterval(recTimer);
+  if (recorder && recorder.state !== "inactive") recorder.stop();
+  recStream?.getTracks().forEach((t) => t.stop());
+}
+
+async function sendRecording() {
+  const type = recorder?.mimeType || "audio/webm";
+  const blob = new Blob(recChunks, { type });
+  recorder = null;
+  if (recCancelled) { setVoice("idle", ""); return; }
+  if (blob.size < 2000) { setVoice("idle", "That recording was too short. Click the microphone and ask your question."); return; }
+  setVoice("working", "Turning your question into text…");
+  try {
+    const resp = await fetch("/api/transcribe", { method: "POST", headers: { "Content-Type": type }, body: blob });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(data.detail || `server answered ${resp.status}`);
+    const text = (data.text || "").trim();
+    if (!text) { setVoice("idle", "No speech was detected. Try again a little closer to the microphone."); return; }
+    setVoice("idle", "");
+    ask(text);
+  } catch (err) {
+    setVoice("idle", `The recording couldn't be transcribed (${err.message}). Try again or type your question.`);
+  }
+}
+
+micBtn.addEventListener("click", () => {
+  if (micBtn.dataset.state === "recording") stopRecording();
+  else if (micBtn.dataset.state === "idle") startRecording();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && micBtn.dataset.state === "recording") stopRecording(true);
+});
+
 /* ---------- side panels ---------- */
 async function loadMethod() {
   try {

@@ -103,6 +103,8 @@ that had data) is reported with every score.
 | All numbers, rankings, scores and capacity estimates | **Deterministic** Python |
 | Key takeaways for each tool result ("KEY FACTS") | **Deterministic**; given to the LLM first so a small model leads with the right facts |
 | Explaining the result in plain English, follow-up conversation | **LLM** |
+| Turning a spoken question into text | **Speech model**: Whisper (`faster-whisper`, `base.en`) running on the server |
+| Off-topic questions, and analyses that fail | **Deterministic** guards: a fixed reply instead of letting the LLM improvise |
 | Sources and assumptions under each answer | **Deterministic** footer, never generated |
 
 The LLM is local (`llama3.1:8b` by default, configurable via `OLLAMA_MODEL`), so no data leaves the machine and there

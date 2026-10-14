@@ -40,7 +40,15 @@
       <form class="composer" id="composer">
         <label class="visually-hidden" for="composer-input">Your question</label>
         <textarea id="composer-input" rows="1" placeholder="Ask about an airport, a city or a region"></textarea>
+        <button type="button" class="btn-mic" id="mic-btn" data-state="idle" aria-label="Ask by voice" title="Ask by voice">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="9" y="3" width="6" height="11" rx="3" />
+            <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7" />
+          </svg>
+          <span class="mic-time" id="mic-time" hidden>0:00</span>
+        </button>
         <button type="submit" class="btn-primary" id="ask-btn">Ask</button>
+        <p class="voice-status" id="voice-status" aria-live="polite" hidden></p>
       </form>
     </div>
     <figure class="chart-symbol" aria-hidden="true">
@@ -86,7 +94,7 @@
       <h2>Who does what</h2>
       <p>Numbers, rankings and scores come from the data and fixed formulas. The language model
         (<span id="model-name">local</span>, running on this server through Ollama) picks which analysis to run and
-        explains the result.</p>
+        explains the result. Spoken questions are turned into text by Whisper on this server, so audio never leaves it.</p>
     </section>
   </aside>
 </div>

@@ -38,6 +38,18 @@ ANSWER_NUDGE = (
 )
 
 
+OFF_TOPIC = (
+    "I answer questions about US airports: traffic and growth, congestion, route mix, unmet demand and which "
+    "airports are strong candidates for terminal expansion. Name an airport (SFO), a city (Santa Ana) or a "
+    "region (New England) to get started."
+)
+DOMAIN_WORDS = re.compile(
+    r"airport|flight|airline|runway|terminal|gate|passeng|enplan|congest|delay|capacit|demand|route|hub|cargo|"
+    r"aviation|invest|expan|scor|rank|load factor|long[\s-]?haul|faa|bts|method|weight|kpi|travel",
+    re.IGNORECASE,
+)
+
+
 @dataclass
 class Session:
     history: list[dict] = field(default_factory=list)  # prior user/assistant turns (answers without footers)
@@ -166,6 +178,13 @@ def ask(question: str, session: Session) -> Iterator[dict]:
     hint = _hint(res, session)
     yield {"type": "status", "text": f"Resolved: {hint}"}
 
+    if res.empty() and not (session.focus_airports or session.focus_region) and not DOMAIN_WORDS.search(question):
+        # Nothing about airports here: don't let the model invent an analysis.
+        yield {"type": "token", "text": OFF_TOPIC}
+        session.history += [{"role": "user", "content": question}, {"role": "assistant", "content": OFF_TOPIC}]
+        yield {"type": "done"}
+        return
+
     messages = [{"role": "system", "content": SYSTEM}, *session.history[-6:],
                 {"role": "user", "content": f"{question}\n\n[Resolved: {hint}]"}]
 
@@ -203,6 +222,15 @@ def ask(question: str, session: Session) -> Iterator[dict]:
         results.append(out)
         messages.append({"role": "tool", "tool_name": name, "content": _tool_message(out)})
     _remember(session, calls, res)
+
+    if all("error" in r for r in results):
+        # Every analysis failed: report it plainly instead of letting the model improvise an answer.
+        answer = ("That analysis couldn't run: " + "; ".join(r["error"] for r in results)
+                  + " Try naming an airport (SFO), a city (Santa Ana) or a region (New England).")
+        yield {"type": "token", "text": answer}
+        session.history += [{"role": "user", "content": question}, {"role": "assistant", "content": answer}]
+        yield {"type": "done"}
+        return
 
     messages.append({"role": "user", "content": ANSWER_NUDGE})
     answer = ""

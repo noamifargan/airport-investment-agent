@@ -57,6 +57,8 @@ def _codes(airports: list[str] | str) -> list[str]:
 
 
 def _states(region: str) -> tuple[str, list[str]]:
+    if region.strip().strip(".").replace(".", "").upper() in {"US", "USA", "UNITED STATES", "NATIONWIDE", "NATIONAL"}:
+        return "United States", REGIONS["United States"]
     if region in REGIONS:
         return region, REGIONS[region]
     res = registry().resolve(region)
