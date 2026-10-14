@@ -149,8 +149,10 @@ def rank_airports(region: str, metric: str = "terminal_expansion", top_n: int = 
             }
         )
     excluded = int((df["state"].isin(states) & (df["enplanements_t12m"] < min_enplanements)).sum())
+    headline = f"Top candidates in {name} by {metric.replace('_', ' ')} score (0-100): " + ", ".join(
+        f"{r['airport'].split(' — ')[0]} {r['score']}" for r in ranked[:5])
     return {
-        "result": {"region": name, "metric": metric, "ranking": ranked,
+        "result": {"headline": headline, "region": name, "metric": metric, "ranking": ranked,
                    "excluded_small_airports": f"{excluded} airports below {min_enplanements:,} enplanements"},
         "sources": _sources("T-100", "OurAirports", "On-Time", "Airfare"),
         "assumptions": _assumptions("traffic", "score", "capacity", "fares"),
@@ -169,10 +171,28 @@ def compare_airports(airports: list[str], metric: str = "congestion") -> dict:
         rows.append({**_kpis(code), f"{metric}_score": detail["score"], "score_breakdown": detail["components"],
                      "live_faa_status": _live(code), "known_constraints": [c["fact"] for c in KNOWN_CONSTRAINTS.get(code, [])]})
     return {
-        "result": {"metric": metric, "airports": rows},
+        "result": {"headline": _compare_headline(codes, rows, metric), "metric": metric, "airports": rows},
         "sources": _sources("T-100", "OurAirports", "On-Time", "Airfare") + _live_source(),
         "assumptions": _assumptions("traffic", "capacity", "ontime", "score"),
     }
+
+
+def _compare_headline(codes: list[str], rows: list[dict], metric: str) -> list[str]:
+    """Deterministic takeaways so even a small LLM leads with the right facts."""
+    label = "congestion index (0-100, higher = more congested)" if metric == "congestion" else "terminal-expansion score (0-100)"
+    order = sorted(zip(codes, rows), key=lambda cr: cr[1][f"{metric}_score"], reverse=True)
+    lines = [f"{label}: " + " vs ".join(f"{c} {r[f'{metric}_score']}" for c, r in order)]
+    first, last = order[0][1]["score_breakdown"], order[-1][1]["score_breakdown"]
+    gaps = []
+    for a in first:
+        b = next((x for x in last if x["kpi"] == a["kpi"]), None)
+        if b:
+            gaps.append((abs(a["points"] - b["points"]), f"{a['kpi']}: {order[0][0]} {a['value']} vs {order[-1][0]} {b['value']}"))
+    lines += ["biggest difference — " + g for _, g in sorted(gaps, reverse=True)[:3]]
+    for c, r in order:
+        if r["known_constraints"]:
+            lines.append(f"{c} structural constraint: {r['known_constraints'][0]}")
+    return lines
 
 
 def airport_profile(airport: str) -> dict:

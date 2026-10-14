@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Airport Investment Agent</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --muted:#6b7385; --line:#e3e6ec; --accent:#1f5eff; --user:#e8efff; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#12151b; --card:#1b1f27; --ink:#e7eaf0; --muted:#98a0b2; --line:#2b313d; --accent:#6d9bff; --user:#1f2a44; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font:15px/1.5 system-ui, -apple-system, Segoe UI, sans-serif; background:var(--bg); color:var(--ink); }
+  header { padding:14px 20px; border-bottom:1px solid var(--line); background:var(--card); display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
+  header h1 { font-size:17px; margin:0; }
+  header span { color:var(--muted); font-size:13px; }
+  main { max-width:880px; margin:0 auto; padding:16px 16px 140px; }
+  .msg { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 16px; margin:12px 0; overflow-x:auto; }
+  .msg.user { background:var(--user); border-color:transparent; margin-left:15%; }
+  .trace { color:var(--muted); font-size:12.5px; font-family:ui-monospace, monospace; margin:2px 0; }
+  .footer { color:var(--muted); font-size:13px; border-top:1px dashed var(--line); margin-top:10px; padding-top:6px; }
+  .examples { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 16px; }
+  .examples button { background:var(--card); color:var(--ink); border:1px solid var(--line); border-radius:16px; padding:6px 12px; cursor:pointer; font-size:13.5px; }
+  .examples button:hover { border-color:var(--accent); }
+  form { position:fixed; bottom:0; left:0; right:0; background:var(--card); border-top:1px solid var(--line); padding:12px 16px; }
+  .row { max-width:880px; margin:0 auto; display:flex; gap:8px; }
+  textarea { flex:1; resize:none; height:52px; padding:10px; border-radius:8px; border:1px solid var(--line); background:var(--bg); color:var(--ink); font:inherit; }
+  button.send { background:var(--accent); color:#fff; border:0; border-radius:8px; padding:0 18px; font-weight:600; cursor:pointer; }
+  button.send:disabled { opacity:.5; cursor:wait; }
+  button.ghost { background:none; border:1px solid var(--line); color:var(--muted); border-radius:8px; padding:0 12px; cursor:pointer; }
+  ul { padding-left:20px; margin:6px 0; } p { margin:6px 0; } code { font-size:13px; }
+  pre { background:var(--bg); padding:8px; border-radius:6px; overflow-x:auto; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Airport Investment Intelligence Agent</h1>
+  <span id="info">US airports · public BTS / DOT / FAA data · local LLM via Ollama</span>
+</header>
+<main id="log">
+  <div class="msg">
+    <p>Ask about US airports — rankings by region, congestion comparisons, route mix, or unmet demand. Follow-up questions keep context.</p>
+    <div class="examples">
+      <button>Which airports in New England are strong candidates for terminal expansion?</button>
+      <button>Compare LA and Santa Ana airport congestion levels.</button>
+      <button>What is the percentage of long haul flights out of Anchorage airport?</button>
+      <button>What is the unmet flight demand in SFO airport and why?</button>
+    </div>
+  </div>
+</main>
+<form id="form">
+  <div class="row">
+    <textarea id="input" placeholder="Ask a question… (Enter to send, Shift+Enter for a new line)"></textarea>
+    <button class="send" id="send">Send</button>
+    <button class="ghost" type="button" id="reset" title="Start a new conversation">New</button>
+  </div>
+</form>
+<script>
+const log = document.getElementById('log'), input = document.getElementById('input'), send = document.getElementById('send');
+let sessionId = null;
+
+fetch('/api/info').then(r => r.json()).then(i => {
+  document.getElementById('info').textContent = `US airports · public BTS / DOT / FAA data · local LLM: ${i.model}`;
+}).catch(() => {});
+
+const esc = s => s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+function md(text) {  // tiny markdown renderer: headings, bullets, bold/italic, code, rules, links
+  const blocks = esc(text).split(/```/);
+  return blocks.map((b, i) => i % 2 ? `<pre><code>${b.replace(/^\w*\n/, '')}</code></pre>` : b.split('\n').reduce((acc, line) => {
+    const inline = l => l.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/(^|\W)\*(?!\s)(.+?)\*(?=\W|$)/g, '$1<i>$2</i>')
+      .replace(/`([^`]+)`/g, '<code>$1</code>').replace(/(https?:\/\/[^\s)<]+)/g, '<a href="$1" target="_blank">$1</a>');
+    const li = line.match(/^\s*(?:[-*•]|\d+\.)\s+(.*)/);
+    if (li) { acc.list.push(`<li>${inline(li[1])}</li>`); return acc; }
+    if (acc.list.length) { acc.out.push(`<ul>${acc.list.join('')}</ul>`); acc.list = []; }
+    if (/^---+$/.test(line.trim())) acc.out.push('');
+    else if (/^#{1,4}\s/.test(line)) acc.out.push(`<p><b>${inline(line.replace(/^#+\s/, ''))}</b></p>`);
+    else if (line.trim()) acc.out.push(`<p>${inline(line)}</p>`);
+    return acc;
+  }, {out: [], list: []})).map(r => typeof r === 'string' ? r : r.out.join('') + (r.list.length ? `<ul>${r.list.join('')}</ul>` : '')).join('');
+}
+
+function add(cls, html) { const d = document.createElement('div'); d.className = 'msg ' + cls; d.innerHTML = html; log.appendChild(d); d.scrollIntoView({block: 'end'}); return d; }
+
+async function ask(question) {
+  add('user', esc(question));
+  const box = add('bot', '<div class="trace">thinking…</div>');
+  const trace = box.firstChild, body = document.createElement('div'), foot = document.createElement('div');
+  foot.className = 'footer'; box.append(body, foot);
+  let answer = '', traces = [];
+  send.disabled = true;
+  try {
+    const resp = await fetch('/api/chat', {method: 'POST', headers: {'Content-Type': 'application/json'},
+                                           body: JSON.stringify({message: question, session_id: sessionId})});
+    const reader = resp.body.getReader(), dec = new TextDecoder();
+    let buf = '';
+    for (;;) {
+      const {value, done} = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, {stream: true});
+      const lines = buf.split('\n'); buf = lines.pop();
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const ev = JSON.parse(line);
+        if (ev.type === 'session') sessionId = ev.id;
+        else if (ev.type === 'status' || ev.type === 'tool') { traces.push((ev.type === 'tool' ? '⚙ ' : '· ') + ev.text); trace.innerHTML = traces.map(esc).join('<br>'); }
+        else if (ev.type === 'token') { answer += ev.text; body.innerHTML = md(answer); }
+        else if (ev.type === 'footer') foot.innerHTML = md(ev.text);
+        else if (ev.type === 'error') body.innerHTML += `<p><b>Error:</b> ${esc(ev.text)}</p>`;
+      }
+      box.scrollIntoView({block: 'end'});
+    }
+  } catch (e) { body.innerHTML += `<p><b>Error:</b> ${esc(String(e))}</p>`; }
+  send.disabled = false; input.focus();
+}
+
+document.getElementById('form').addEventListener('submit', e => { e.preventDefault(); const q = input.value.trim(); if (q && !send.disabled) { input.value = ''; ask(q); } });
+input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); document.getElementById('form').requestSubmit(); } });
+document.querySelectorAll('.examples button').forEach(b => b.addEventListener('click', () => { if (!send.disabled) ask(b.textContent); }));
+document.getElementById('reset').addEventListener('click', () => {
+  fetch('/api/reset', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({message: '', session_id: sessionId})});
+  sessionId = null; log.querySelectorAll('.msg:not(:first-child)').forEach(m => m.remove());
+});
+</script>
+</body>
+</html>
