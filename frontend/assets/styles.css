@@ -56,7 +56,7 @@ a:hover { color: var(--blue-strong); }
 .brand:hover { color: var(--ink); }
 .brand-mark { width: 30px; height: 30px; flex: none; }
 .brand-mark circle, .brand-mark .ticks { fill: none; stroke: var(--blue); stroke-width: 2.6; }
-.brand-mark .rw { stroke: var(--blue); stroke-width: 2.2; }
+.brand-mark .plane { fill: var(--blue); }
 .nav-links { display: flex; align-items: center; gap: 24px; font-size: 14.5px; font-weight: 500; }
 .nav-links a { color: var(--ink-soft); text-decoration: none; }
 .nav-links a:hover { color: var(--ink); text-decoration: underline; }
@@ -74,10 +74,7 @@ a:hover { color: var(--blue-strong); }
 .chart-symbol { margin: 0; text-align: center; }
 .chart-symbol svg { width: 100%; max-width: 240px; height: auto; }
 .chart-symbol .ring { fill: none; stroke: var(--blue); stroke-width: 7; }
-.chart-symbol .runway { fill: none; stroke: var(--blue); stroke-width: 9; stroke-linecap: butt; }
-.chart-symbol figcaption { display: grid; gap: 2px; margin-top: 6px; font-family: var(--font-display); }
-.chart-name { color: var(--blue); font-weight: 600; font-size: 15px; letter-spacing: -0.01em; }
-.chart-note { color: var(--magenta); font-size: 13px; font-weight: 500; }
+.chart-symbol .plane { fill: var(--blue); }
 
 /* ---------- composer ---------- */
 .composer { display: flex; gap: 10px; align-items: flex-end; max-width: 720px; }
