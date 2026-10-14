@@ -7,7 +7,7 @@ Status legend: `[x]` done · `[ ]` pending
 - [x] **2. Data foundation** — HTTP client, TTL disk cache, provenance, live → cache → snapshot fallback
 - [ ] **3. Connectors**
   - [x] 3a OurAirports — airport registry, regions, runway geometry, name resolver
-  - [ ] 3b BTS T-100 by origin airport (Socrata `r495-tyji`) — monthly traffic per airport
+  - [x] 3b BTS T-100 by origin airport (Socrata `r495-tyji`) — monthly traffic per airport
   - [ ] 3c BTS T-100 Segment, all carriers (TranStats) — route-level distance / load factor
   - [ ] 3d BTS On-Time Reporting (TranStats PREZIP) — delays, taxi-out, peak-hour schedule
   - [ ] 3e DOT Consumer Airfare Report Table 1a (Socrata `tfrh-tu9e`) — fares, concentration
