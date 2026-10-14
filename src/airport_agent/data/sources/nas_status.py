@@ -37,7 +37,7 @@ def parse(xml: bytes) -> tuple[str, list[dict]]:
             events.append({"airport": _text(d, "ARPT"), "type": "Delay", "reason": _text(d, "Reason"), "detail": detail})
         for ap in delay_type.iter("Airport"):
             events.append({"airport": _text(ap, "ARPT"), "type": "Closure/restriction NOTAM",
-                           "reason": _text(ap, "Reason")[:160], "detail": f"{_text(ap, 'Start')} → {_text(ap, 'Reopen')}"})
+                           "reason": _text(ap, "Reason")[:90], "detail": f"{_text(ap, 'Start')} → {_text(ap, 'Reopen')}"})
     return updated, events
 
 

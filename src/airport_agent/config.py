@@ -33,7 +33,7 @@ def _env_bool(name: str, default: bool = False) -> bool:
 @dataclass(frozen=True)
 class Settings:
     ollama_host: str = field(default_factory=lambda: os.environ.get("OLLAMA_HOST", "http://localhost:11434"))
-    ollama_model: str = field(default_factory=lambda: os.environ.get("OLLAMA_MODEL", "qwen3:4b"))
+    ollama_model: str = field(default_factory=lambda: os.environ.get("OLLAMA_MODEL", "llama3.1:8b"))
     offline: bool = field(default_factory=lambda: _env_bool("OFFLINE"))
     data_dir: Path = field(
         default_factory=lambda: Path(os.environ.get("AIRPORT_AGENT_DATA_DIR", PROJECT_ROOT / "data")).resolve()
