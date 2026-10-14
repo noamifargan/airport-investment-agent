@@ -38,21 +38,24 @@
       <p class="lede">Ask about passenger growth, congestion, route mix or unmet demand. Every answer is built from
         public BTS, DOT and FAA data, and shows where its numbers came from.</p>
       <form class="composer" id="composer">
-        <label class="visually-hidden" for="composer-input">Your question</label>
-        <textarea id="composer-input" rows="1" placeholder="Ask about an airport, a city or a region"></textarea>
-        <button type="button" class="btn-mic" id="mic-btn" data-state="idle" aria-label="Ask by voice" title="Ask by voice">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <rect x="9" y="3" width="6" height="11" rx="3" />
-            <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7" />
-          </svg>
-          <span class="mic-time" id="mic-time" hidden>0:00</span>
-        </button>
-        <button type="submit" class="btn-primary" id="ask-btn">Ask</button>
+        <div class="composer-bar">
+          <label class="visually-hidden" for="composer-input">Your question</label>
+          <textarea id="composer-input" rows="1" placeholder="Ask about an airport, a city or a region"></textarea>
+          <button type="button" class="btn-mic" id="mic-btn" data-state="idle" aria-label="Ask by voice" title="Ask by voice">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="9" y="3" width="6" height="11" rx="3" />
+              <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7" />
+            </svg>
+            <span class="mic-time" id="mic-time" hidden>0:00</span>
+          </button>
+          <button type="submit" class="btn-primary" id="ask-btn">Ask</button>
+        </div>
         <p class="voice-status" id="voice-status" aria-live="polite" hidden></p>
       </form>
     </div>
     <figure class="chart-symbol" aria-hidden="true">
       <svg viewBox="0 0 240 240">
+        <circle cx="120" cy="120" r="112" class="disc" />
         <circle cx="120" cy="120" r="74" class="ring" />
         <path d="M120 30v16M120 194v16M30 120h16M194 120h16" class="ring" />
         <path class="plane" transform="translate(120 120) rotate(45) scale(1.15) translate(-50 -50)" d="M50 8C54 8 56 14 56 20L56 38L92 58L92 65L56 56L56 76L68 85L68 90L50 87L32 90L32 85L44 76L44 56L8 65L8 58L44 38L44 20C44 14 46 8 50 8Z" />
@@ -64,17 +67,29 @@
 <div class="wrap page">
   <main class="main" id="main">
     <section class="start" id="start" aria-labelledby="start-title">
-      <h2 id="start-title">Starting points</h2>
-      <ul class="start-list">
-        <li><button type="button" class="ask-example">Which airports in New England are strong candidates for terminal expansion?</button>
-          <p>Ranks every New England airport on the terminal-expansion score.</p></li>
-        <li><button type="button" class="ask-example">Compare LA and Santa Ana airport congestion levels.</button>
-          <p>Puts LAX and SNA side by side on runway use, peak-hour load and delays.</p></li>
-        <li><button type="button" class="ask-example">What is the percentage of long haul flights out of Anchorage airport?</button>
-          <p>Splits a year of Anchorage departures by distance, passenger and cargo.</p></li>
-        <li><button type="button" class="ask-example">What is the unmet flight demand in SFO airport and why?</button>
-          <p>Estimates the passengers and flights turned away, and the constraint behind them.</p></li>
-      </ul>
+      <h2 id="start-title">Try one of these</h2>
+      <div class="tiles">
+        <button type="button" class="tile ask-example" data-q="Which airports in New England are strong candidates for terminal expansion?">
+          <span class="tile-head"><span class="tile-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 20h16M6.5 20v-6M12 20V7M17.5 20v-9.5" /></svg></span>Rank a region</span>
+          <span class="tile-q">Which airports in New England are strong candidates for terminal expansion?</span>
+          <span class="tile-d">Ranks every New England airport on the terminal-expansion score.</span>
+        </button>
+        <button type="button" class="tile ask-example" data-q="Compare LA and Santa Ana airport congestion levels.">
+          <span class="tile-head"><span class="tile-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 4v16M8 20h8M4.5 7.5h15M7 7.5l-3 6.5a3 3 0 0 0 6 0zM17 7.5l-3 6.5a3 3 0 0 0 6 0z" /></svg></span>Compare airports</span>
+          <span class="tile-q">Compare LA and Santa Ana airport congestion levels.</span>
+          <span class="tile-d">Puts LAX and SNA side by side on runway use, peak-hour load and delays.</span>
+        </button>
+        <button type="button" class="tile ask-example" data-q="What is the percentage of long haul flights out of Anchorage airport?">
+          <span class="tile-head"><span class="tile-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="6" cy="18" r="2" /><circle cx="18" cy="6" r="2" /><path d="M7.5 16.5C10 9 14 15 16.5 7.5" stroke-dasharray="2.5 2.5" /></svg></span>Route mix</span>
+          <span class="tile-q">What is the percentage of long haul flights out of Anchorage airport?</span>
+          <span class="tile-d">Splits a year of Anchorage departures by distance, passenger and cargo.</span>
+        </button>
+        <button type="button" class="tile ask-example" data-q="What is the unmet flight demand in SFO airport and why?">
+          <span class="tile-head"><span class="tile-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 17l5.5-5.5 4 4L20 9M14.5 9H20v5.5" /></svg></span>Unmet demand</span>
+          <span class="tile-q">What is the unmet flight demand in SFO airport and why?</span>
+          <span class="tile-d">Estimates the passengers and flights turned away, and the constraint behind them.</span>
+        </button>
+      </div>
       <p class="start-note">Follow-up questions keep the context, so you can ask “why?” or “how does that compare to Boston?”.</p>
     </section>
     <section class="thread" id="thread" aria-live="polite"></section>
@@ -90,7 +105,7 @@
         <ul class="weights" id="weights-cg"></ul>
       </details>
     </section>
-    <section class="panel panel-plain">
+    <section class="panel panel-tint">
       <h2>Who does what</h2>
       <p>Numbers, rankings and scores come from the data and fixed formulas. The language model
         (<span id="model-name">local</span>, running on this server through Ollama) picks which analysis to run and

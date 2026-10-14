@@ -284,7 +284,13 @@ input.addEventListener("keydown", (e) => {
 });
 function autosize() { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight + 2, 200) + "px"; }
 input.addEventListener("input", autosize);
-document.querySelectorAll(".ask-example").forEach((b) => b.addEventListener("click", () => ask(b.textContent)));
+document.querySelectorAll(".ask-example").forEach((b) => b.addEventListener("click", () => ask(b.dataset.q || b.textContent)));
 $("#new-chat").addEventListener("click", resetChat);
+
+// The full placeholder doesn't fit the narrow question bar on phones.
+const narrow = window.matchMedia("(max-width: 640px)");
+const setPlaceholder = () => { input.placeholder = narrow.matches ? "Ask about an airport…" : "Ask about an airport, a city or a region"; };
+narrow.addEventListener("change", setPlaceholder);
+setPlaceholder();
 
 loadInfo(); loadMethod();
