@@ -38,7 +38,6 @@ class Settings:
     data_dir: Path = field(
         default_factory=lambda: Path(os.environ.get("AIRPORT_AGENT_DATA_DIR", PROJECT_ROOT / "data")).resolve()
     )
-    ontime_months: int = field(default_factory=lambda: int(os.environ.get("ONTIME_MONTHS", "3")))
     http_timeout: float = field(default_factory=lambda: float(os.environ.get("HTTP_TIMEOUT", "60")))
 
     @property

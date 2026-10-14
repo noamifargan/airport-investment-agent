@@ -2,6 +2,8 @@
 
 Status legend: `[x]` done · `[ ]` pending
 
+Scope rule: one-day build — simplest approach that answers the example questions credibly.
+
 - [x] **0. Data reconnaissance** — verify which public aviation sources are reachable without keys
 - [x] **1. Project scaffold** — uv package, `src/` layout, settings, git
 - [x] **2. Data foundation** — HTTP client, TTL disk cache, provenance, live → cache → snapshot fallback
@@ -9,10 +11,9 @@ Status legend: `[x]` done · `[ ]` pending
   - [x] 3a OurAirports — airport registry, regions, runway geometry, name resolver
   - [x] 3b BTS T-100 by origin airport (Socrata `r495-tyji`) — monthly traffic per airport
   - [x] 3c BTS T-100 Segment, all carriers (TranStats) — route-level distance / load factor
-  - [ ] 3d BTS On-Time Reporting (TranStats PREZIP) — delays, taxi-out, peak-hour schedule
+  - [x] 3d BTS On-Time Reporting (TranStats PREZIP, latest month) — delays, taxi-out, peak-hour schedule
   - [ ] 3e DOT Consumer Airfare Report Table 1a (Socrata `tfrh-tu9e`) — fares, concentration
   - [ ] 3f FAA NAS Status (live XML) — ground delay programs, ground stops, closures
-  - [ ] 3g aviationweather.gov METAR (live) — current VFR/IFR flight category
 - [ ] **4. Feature pipeline** — `refresh` builds per-airport KPI table + bundled snapshot
 - [ ] **5. Deterministic analytics**
   - [ ] 5a Runway capacity model (parallel spacing → VFR/IFR hourly capacity, ASV)
