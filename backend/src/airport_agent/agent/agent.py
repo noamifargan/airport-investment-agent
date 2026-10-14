@@ -148,7 +148,9 @@ def _tool_message(out: dict) -> str:
         text += "KEY FACTS:\n" + "\n".join(f"- {f}" for f in facts) + "\n\n"
     if "error" in out:
         text += f"ERROR: {out['error']}\n"
-    details = {"details": result, "assumptions": out.get("assumptions", [])} if result is not None else {}
+    # Assumptions are left out too: given the full list, a small model repeats the wrong one in every answer.
+    # The answer takes its uncertainty line from the skill file; the footer lists every assumption.
+    details = {"details": result} if result is not None else {}
     return text + "DETAILS: " + json.dumps(details, ensure_ascii=False)
 
 

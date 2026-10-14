@@ -157,7 +157,7 @@ def rank_airports(region: str, metric: str = "terminal_expansion", top_n: int = 
         "result": {"headline": headline, "region": name, "metric": metric, "ranking": ranked,
                    "excluded_small_airports": f"{excluded} airports below {min_enplanements:,} enplanements"},
         "sources": _sources("T-100", "OurAirports", "On-Time", "Airfare"),
-        "assumptions": _assumptions("score", "capacity", "fares", "traffic"),
+        "assumptions": _assumptions("score", "capacity", "ontime" if metric == "congestion" else "fares", "traffic"),
     }
 
 
