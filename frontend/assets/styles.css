@@ -1,4 +1,4 @@
-/* Aeronautical-chart palette: sectional blue for actions, magenta only for live data and alerts. */
+/* Aeronautical-chart palette: sectional blue for actions, magenta for accents and alerts. */
 :root {
   --paper: #f4f6f1;
   --paper-raised: #fbfcf9;
@@ -63,19 +63,6 @@ a:hover { color: var(--blue-strong); }
   border: 1px solid var(--blue); border-radius: 4px; padding: 9px 14px; cursor: pointer; white-space: nowrap;
 }
 .btn-quiet:hover { background: var(--blue); color: var(--paper-raised); }
-
-/* ---------- live FAA strip ---------- */
-.live { background: var(--terrain); border-bottom: 1px solid var(--rule); font-size: 14px; }
-.live-inner { display: flex; align-items: center; gap: 16px; min-height: 42px; }
-.live-label { display: flex; align-items: center; gap: 8px; font: 700 13px/1 var(--font-display); color: var(--magenta); white-space: nowrap; }
-.live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--magenta); animation: pulse 2.4s ease-in-out infinite; }
-.live-events { display: flex; gap: 0; overflow-x: auto; white-space: nowrap; scrollbar-width: none; color: var(--ink); }
-.live-events::-webkit-scrollbar { display: none; }
-.live-events .ev { padding: 0 14px; border-left: 1px solid var(--rule); }
-.live-events .ev:first-child { padding-left: 0; border-left: 0; }
-.live-events .ev b { font-family: var(--font-display); }
-.live-events .quiet { color: var(--ink-soft); }
-@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 
 /* ---------- hero ---------- */
 .hero { background: var(--paper); border-bottom: 1px solid var(--rule); }
@@ -148,6 +135,7 @@ a:hover { color: var(--blue-strong); }
 
 .progress { display: flex; align-items: center; gap: 10px; color: var(--ink-soft); font-size: 15px; margin: 4px 0 12px; }
 .progress::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--blue); animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 
 .answer { max-width: 72ch; font-size: 16.5px; line-height: 1.65; }
 .answer p { margin: 0 0 12px; }
@@ -214,5 +202,5 @@ body.chatting .start { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  .live-dot, .progress::before { animation: none; }
+  .progress::before { animation: none; }
 }

@@ -175,26 +175,7 @@ async function ask(question) {
   }
 }
 
-/* ---------- side panels and live strip ---------- */
-async function loadLive() {
-  const box = $("#live-events");
-  try {
-    const live = await (await fetch("/api/live")).json();
-    if (!live.available) { box.innerHTML = '<span class="quiet">The FAA status feed is unavailable right now.</span>'; return; }
-    const items = live.events.map((e) => {
-      const what = e.type === "Ground Delay Program" ? "ground delay program" : e.type === "Ground Stop" ? "ground stop" : "delays";
-      const detail = e.detail ? `, ${e.detail}` : "";
-      return `<span class="ev"><b>${esc(e.airport)}</b> ${what}${esc(detail)}${e.reason ? ` (${esc(e.reason)})` : ""}</span>`;
-    });
-    if (!items.length) items.push('<span class="ev quiet">No delay programs or ground stops anywhere in the US right now.</span>');
-    if (live.notices) items.push(`<span class="ev quiet">${live.notices} airport closure notices</span>`);
-    box.innerHTML = items.join("");
-    box.title = live.updated ? `FAA feed updated ${live.updated}` : "";
-  } catch {
-    box.innerHTML = '<span class="quiet">The FAA status feed is unavailable right now.</span>';
-  }
-}
-
+/* ---------- side panels ---------- */
 async function loadMethod() {
   try {
     const m = await (await fetch("/api/methodology")).json();
@@ -226,5 +207,4 @@ input.addEventListener("input", autosize);
 document.querySelectorAll(".ask-example").forEach((b) => b.addEventListener("click", () => ask(b.textContent)));
 $("#new-chat").addEventListener("click", resetChat);
 
-loadInfo(); loadLive(); loadMethod();
-setInterval(loadLive, 120000);
+loadInfo(); loadMethod();

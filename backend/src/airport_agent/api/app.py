@@ -1,4 +1,4 @@
-"""API server: streams agent events as NDJSON, exposes a few read-only data endpoints, and serves ../frontend."""
+"""API server: streams agent events as NDJSON, exposes the scoring weights, and serves ../frontend."""
 
 from __future__ import annotations
 
@@ -12,8 +12,6 @@ from pydantic import BaseModel
 from airport_agent.agent.agent import Session, ask
 from airport_agent.analytics import scoring
 from airport_agent.config import settings
-from airport_agent.data.sources import nas_status
-from airport_agent.data.store import DataUnavailable
 
 FRONTEND = settings.frontend_dir
 app = FastAPI(title="Airport Investment Intelligence")
@@ -39,17 +37,6 @@ def info() -> dict:
 @app.get("/api/methodology")
 def methodology() -> dict:
     return scoring.methodology()
-
-
-@app.get("/api/live")
-def live() -> dict:
-    """Current FAA delay programs, ground stops and delays (closure NOTAMs are counted, not listed)."""
-    try:
-        events, updated, _ = nas_status.current_events()
-    except DataUnavailable:
-        return {"available": False, "events": [], "notices": 0, "updated": ""}
-    major = [e for e in events if e["type"] != "Closure/restriction NOTAM"]
-    return {"available": True, "events": major, "notices": len(events) - len(major), "updated": updated}
 
 
 @app.post("/api/chat")

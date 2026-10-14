@@ -56,7 +56,7 @@ Set these as environment variables or in `backend/.env` (see `backend/.env.examp
 ```
 backend/                     Python project (uv): API server, agent, data, analytics
   src/airport_agent/
-    api/app.py               FastAPI: chat stream (NDJSON), live FAA status, scoring weights; serves the frontend
+    api/app.py               FastAPI: chat stream (NDJSON), scoring weights; serves the frontend
     agent/                   tools, Ollama client, agent loop
     analytics/               runway capacity, KPI table, scores, curated constraints
     data/store.py            fetch-with-fallback cache + provenance
