@@ -27,7 +27,7 @@ class Component:
 
 # Terminal-expansion attractiveness: is there demand a bigger terminal could capture profitably?
 TERMINAL_EXPANSION = [
-    Component("enplanements_t12m", "Market size", 0.20, 5.0, 7.48, "{:,.0f} enplanements",
+    Component("enplanements_t12m", "Market size", 0.25, 5.0, 7.48, "{:,.0f} enplanements",
               "log10 scale: 100k → 0, 30M → 100; bigger base = more revenue per added gate"),
     Component("growth_yoy", "Passenger growth (YoY)", 0.20, -0.05, 0.10, "{:+.1%}",
               "trailing-12-month vs prior 12 months: −5% → 0, +10% → 100"),
@@ -35,7 +35,7 @@ TERMINAL_EXPANSION = [
               "full planes = demand spilling; 70% → 0, 88% → 100"),
     Component("fare_premium", "Fare premium vs national curve", 0.10, -0.20, 0.30, "{:+.1%}",
               "fares above the distance-adjusted US average signal scarce capacity / pricing power"),
-    Component("runway_util", "Airside headroom", 0.20, 1.00, 0.30, "{:.0%} of runway ASV used",
+    Component("runway_util", "Airside headroom", 0.15, 1.00, 0.30, "{:.0%} of runway ASV used",
               "terminal gates only pay off if runways can take more flights: 100% used → 0, 30% → 100"),
     Component("hhi", "Carrier diversity", 0.10, 0.60, 0.15, "HHI {:.2f}",
               "many carriers = more tenants competing for new gates; HHI 0.60 → 0, 0.15 → 100"),

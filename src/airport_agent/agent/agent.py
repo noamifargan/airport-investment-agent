@@ -31,9 +31,10 @@ Rules:
 - If data is missing for something, say so plainly. Keep answers under 250 words, using short bullets."""
 
 ANSWER_NUDGE = (
-    "Using only the tool results above, answer the analyst's question. Lead with the direct answer, explain the "
-    "drivers, and note the key uncertainty. Only quote numbers that appear verbatim in the tool results, with the "
-    "label they have there; never compute or relabel numbers. Do not list sources; they are appended automatically."
+    "Using only the tool results above, answer the analyst's question. Lead with the direct answer and include every "
+    "KEY FACT, then explain the drivers, then note the key uncertainty in one line. Only quote numbers that appear "
+    "verbatim in the tool results; never compute or relabel numbers. Write plain English: never mention JSON field "
+    "names or the words 'KEY FACTS'. Do not list sources; they are appended automatically."
 )
 
 
@@ -116,6 +117,21 @@ def _run(name: str, args: dict, res: Resolution, session: Session) -> dict:
         return {"error": str(exc)}
 
 
+def _tool_message(out: dict) -> str:
+    """Tool result as the LLM sees it: KEY FACTS first (small models anchor on what comes first), then details.
+    Sources are left out — they go in the deterministic footer instead."""
+    result = dict(out.get("result", {})) if isinstance(out.get("result"), dict) else out.get("result")
+    headline = result.pop("headline", None) if isinstance(result, dict) else None
+    facts = [headline] if isinstance(headline, str) else (headline or [])
+    text = ""
+    if facts:
+        text += "KEY FACTS:\n" + "\n".join(f"- {f}" for f in facts) + "\n\n"
+    if "error" in out:
+        text += f"ERROR: {out['error']}\n"
+    details = {"details": result, "assumptions": out.get("assumptions", [])} if result is not None else {}
+    return text + "DETAILS: " + json.dumps(details, ensure_ascii=False)
+
+
 def _remember(session: Session, calls: list[tuple[str, dict]], res: Resolution) -> None:
     if res.airports:
         session.focus_airports, session.focus_region = res.airports, ""
@@ -184,8 +200,7 @@ def ask(question: str, session: Session) -> Iterator[dict]:
         yield {"type": "tool", "text": f"{name}({json.dumps(args)}) — chosen by {chosen_by}"}
         out = _run(name, args, res, session)
         results.append(out)
-        payload = {k: v for k, v in out.items() if k != "sources"}  # sources go in the footer, not the prompt
-        messages.append({"role": "tool", "tool_name": name, "content": json.dumps(payload, ensure_ascii=False)})
+        messages.append({"role": "tool", "tool_name": name, "content": _tool_message(out)})
     _remember(session, calls, res)
 
     messages.append({"role": "user", "content": ANSWER_NUDGE})

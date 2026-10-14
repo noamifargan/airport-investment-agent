@@ -155,7 +155,7 @@ def rank_airports(region: str, metric: str = "terminal_expansion", top_n: int = 
         "result": {"headline": headline, "region": name, "metric": metric, "ranking": ranked,
                    "excluded_small_airports": f"{excluded} airports below {min_enplanements:,} enplanements"},
         "sources": _sources("T-100", "OurAirports", "On-Time", "Airfare"),
-        "assumptions": _assumptions("traffic", "score", "capacity", "fares"),
+        "assumptions": _assumptions("score", "capacity", "fares", "traffic"),
     }
 
 
@@ -173,7 +173,7 @@ def compare_airports(airports: list[str], metric: str = "congestion") -> dict:
     return {
         "result": {"headline": _compare_headline(codes, rows, metric), "metric": metric, "airports": rows},
         "sources": _sources("T-100", "OurAirports", "On-Time", "Airfare") + _live_source(),
-        "assumptions": _assumptions("traffic", "capacity", "ontime", "score"),
+        "assumptions": _assumptions("ontime", "capacity", "score", "traffic"),
     }
 
 
@@ -237,8 +237,14 @@ def route_mix(airport: str, long_haul_miles: int = LONG_HAUL_MI) -> dict:
     alt = {f"{m:,}+ mi": _pct(r.loc[r["distance_mi"] >= m, "departures"].sum() / total) for m in (2000, 2500, 3000, 4000) if m != long_haul_miles}
     top = (lh.groupby("dest").agg(departures=("departures", "sum"), distance_mi=("distance_mi", "max"), cargo=("cargo", "mean"))
            .sort_values("departures", ascending=False).head(8))
+    lh_all, lh_pax, lh_cargo = _pct(lh["departures"].sum() / total), share(~r["cargo"]), share(r["cargo"])
+    cargo_share = _pct(r.loc[r["cargo"], "departures"].sum() / total)
+    headline = (f"{lh_all} of {code}'s {int(total):,} departures (12 months) are long-haul (≥ {long_haul_miles:,} mi). "
+                f"By type: {lh_cargo} of cargo flights vs {lh_pax} of passenger flights are long-haul; "
+                f"cargo is {cargo_share} of all departures.")
     return {
         "result": {
+            "headline": headline,
             "airport": _kpis(code)["airport"],
             "departures_12m": int(total),
             "long_haul_definition": f"≥ {long_haul_miles:,} statute miles nonstop (≈ 6+ hours)",
@@ -269,7 +275,8 @@ def unmet_demand(airport: str) -> dict:
     r = df.loc[code]
     drivers = []
     if pd.notna(r.get("load_factor")) and r["load_factor"] >= 0.80:
-        drivers.append(f"High load factor {r['load_factor']:.1%}: many flights sell out, so demand is turned away.")
+        drivers.append(f"High average load factor ({r['load_factor']:.1%} of seats filled): at this level many "
+                       "individual flights are full, so some would-be passengers are turned away.")
     if pd.notna(r.get("peak_util_ifr")) and r["peak_util_ifr"] > 1:
         drivers.append(f"Peak-hour airline schedule ({r['peak_hour_ops']:.0f} ops) exceeds bad-weather runway capacity "
                        f"({r['ifr_hourly']:.0f}/h) — in IFR conditions flights must be held or cancelled.")
@@ -283,8 +290,18 @@ def unmet_demand(airport: str) -> dict:
         drivers.append(f"Concentrated market (HHI {r['hhi']:.2f}) — a dominant carrier may limit capacity growth.")
     for c in KNOWN_CONSTRAINTS.get(code, []):
         drivers.append("Structural: " + c["fact"])
+    headline = [
+        f"Estimated unmet demand at {code}: about {_num(r['unmet_pax_t12m'])} passengers a year "
+        f"({_pct(r['spill_rate'])} of demand), equal to roughly {r['unmet_daily_departures']:.0f} extra daily departures."
+    ]
+    structural = [d for d in drivers if d.startswith("Structural")]
+    headline.append("Main reason: " + (structural[0].removeprefix("Structural: ") if structural else drivers[0] if drivers else "n/a"))
+    if pd.notna(r.get("peak_excess_ifr")) and r["peak_excess_ifr"] > 0:
+        headline.append(f"In bad weather the average peak hour has {r['peak_excess_ifr']:.0f} more scheduled airline "
+                        f"operations than the runways can handle ({r['peak_hour_ops']:.0f} vs {r['ifr_hourly']:.0f}/h).")
     return {
         "result": {
+            "headline": headline,
             "airport": _kpis(code)["airport"],
             "unmet_passengers_12m": _num(r["unmet_pax_t12m"]),
             "unmet_share_of_demand": _pct(r["spill_rate"]),
@@ -298,7 +315,7 @@ def unmet_demand(airport: str) -> dict:
             "live_faa_status": _live(code),
         },
         "sources": _sources("T-100", "OurAirports", "On-Time", "Airfare") + _live_source(),
-        "assumptions": _assumptions("traffic", "spill", "capacity", "ontime"),
+        "assumptions": _assumptions("spill", "capacity", "ontime", "traffic"),
     }
 
 
