@@ -1,147 +1,130 @@
-# Design — Airport Investment Intelligence Agent
+# Airport Investment Intelligence Agent: design
 
-A chat agent that helps analysts find US airports where terminal modernization or expansion would pay off, based on
-unmet flight and passenger demand. It pulls public aviation data from government APIs at runtime, scores airports with
-deterministic logic, and uses a **local LLM (Ollama)** only to choose tools and explain results.
+A chat assistant that helps analysts find US airports where terminal expansion would pay off. You ask a question by
+typing or speaking. The app pulls public aviation data, scores airports with fixed formulas, and a local AI model
+explains the result in plain English.
 
-## 1. Architecture
+## 1. High-level design
 
 ```
- question ──► Resolver (deterministic) ──► LLM picks tool + args ──► Tools (deterministic) ──► LLM writes answer ──► + footer
-              "LA", "Santa Ana",            Ollama, llama3.1:8b       rank / compare / profile     grounded in tool       sources &
-              "New England" → codes         (router fallback if       route_mix / unmet_demand     output (KEY FACTS      assumptions
-                                             no tool call)             live_status / methodology   first)                 (deterministic)
-                                                       │
-                                     KPI table (pandas, ~400 commercial airports)
-                                                       │
-       ┌──────────────┬───────────────────┬────────────┴───────┬───────────────────┬──────────────────┐
-   OurAirports   BTS T-100 by airport   BTS T-100 Segment   BTS On-Time        DOT Airfare        FAA NAS Status
-   CSV (HTTP)    Socrata API            TranStats download  TranStats ZIP      Socrata API        live XML API
+  Browser  (frontend/)                         Server  (backend/)
+ ┌───────────────────────┐   question    ┌──────────────────────────────────────────────┐
+ │ Web page              │ ────────────► │ API server (FastAPI)                         │
+ │ type or speak a       │               │   voice → text: Whisper, runs on the server  │
+ │ question, read the    │ ◄──────────── │   agent ──► AI model: Ollama, runs locally   │
+ │ answer as it streams  │   answer      │     └────► tools ──► scores and KPIs         │
+ └───────────────────────┘               │                        └──► data layer       │
+                                         └──────────────────────────────────┬───────────┘
+                                                                            │ API calls + disk cache
+                                       Public data: BTS, DOT, FAA, OurAirports
 ```
 
-**Code layout.** `backend/` is the Python project: data connectors, analytics, the agent and the FastAPI server. Module
-paths below are relative to `backend/src/airport_agent/`. `frontend/` is the static web page (HTML, CSS, JavaScript, no
-build step), which the API server also serves.
+| Part | What it does | Code |
+|---|---|---|
+| Web page | Question box, microphone button, answers, scoring panel | `frontend/` |
+| API server | Receives questions and recordings, streams answers back | `backend/.../api/app.py` |
+| Agent | Understands the question, runs the right analysis, writes the answer | `backend/.../agent/` |
+| Scoring | Turns airport facts into 0–100 scores | `backend/.../analytics/` |
+| Data layer | Fetches public data through APIs and caches it | `backend/.../data/` |
 
-**Data layer.** Every source goes through one fetch-with-fallback store (`data/store.py`). The order is:
-1. A disk-cache copy that is still within its time-to-live.
-2. A **live API call**.
-3. If the API is down or `OFFLINE=1`: an expired cached copy, clearly flagged.
+## 2. How a question is answered
 
-Every dataset carries a provenance record (source, URL, pull time, data period, live or cache). That record is printed
-under every answer, so the analyst always knows where a number came from and how old it is.
+1. **You ask.** Type, or click the microphone and speak. Speech is turned into text on the server.
+2. **The app finds the places you mean.** Fixed rules map "LA" to LAX, "Santa Ana" to SNA, and "New England" to six
+   states.
+3. **The AI picks the analysis.** It chooses one of: rank airports, compare airports, airport profile, route mix,
+   unmet demand, or live FAA status. If it doesn't choose, keyword rules pick one instead.
+4. **The analysis runs on real data.** Facts and scores are calculated by formulas, not by the AI.
+5. **The AI writes the answer** from those results, and is told to quote the numbers exactly.
+6. **The app adds sources and assumptions** under the answer: which datasets, how fresh, and which caveats apply.
+7. **The conversation is remembered**, so follow-ups like "why?" or "how does that compare to LAX?" work.
 
-| Source | What it gives | Access | Freshness (as built) |
-|---|---|---|---|
-| OurAirports | Airport identity, location, runways with end coordinates | HTTP CSV | Nightly |
-| BTS T-100 by origin airport (`r495-tyji`) | Monthly passengers, seats, departures, freight per airport, since 2019 | Socrata API | Through 2026-04 |
-| BTS T-100 Segment, all carriers | Every route incl. foreign and cargo carriers: departures, seats, distance | TranStats download form (no JSON API exists) | 2025-08..2026-07 |
-| BTS Airline On-Time | Per-flight delays, taxi times, scheduled hours (reporting airlines) | Monthly ZIP (~30 MB) | Latest month (2026-07) |
-| DOT Airfare Report Table 1a (`tfrh-tu9e`) | Fares by airport pair (contiguous US) | Socrata API | 2025Q2..2026Q1 |
-| FAA NAS Status | Ground delay programs, ground stops, closures **right now** | Live XML API | Real time |
+**Where the data comes from.** Every source is fetched through its public API when needed and saved on disk. If an API
+is down, the last saved copy is used and marked as such.
 
-Where an API can't provide something, the gap is handled another way and stated:
-- **No public API has gate or terminal counts.** Terminal pressure is inferred from load factor, fare premium and growth.
-- **No API carries regulatory caps** (e.g. SNA's passenger cap, slot control). These are in a short curated table with
-  source references (`analytics/constraints.py`), labelled as static context.
-- **OpenSky** flight history requires an account, so it isn't used. BTS T-100 covers the same need with full-year data.
-
-## 2. Scoring methodology (deterministic)
-
-All KPIs come from the sources above and are computed in `analytics/features.py`. Each KPI is mapped linearly onto
-0–100 between **fixed anchors**, not the min and max of the current peer set. As a result, an airport's score doesn't
-change depending on which airports it's compared with, and scores are comparable across questions. Missing KPIs (e.g.
-fares for Alaska) are dropped, the remaining weights are renormalised, and a **coverage** figure (the share of weight
-that had data) is reported with every score.
-
-### Terminal-expansion score (0–100, higher = better investment candidate)
-
-| KPI | Weight | 0 points | 100 points | Rationale |
-|---|---|---|---|---|
-| Market size: enplanements, trailing 12 months (log scale) | 25% | 100k | 30M | Revenue base per added gate |
-| Passenger growth: trailing 12 months vs prior 12 | 20% | −5% | +10% | Demand momentum |
-| Load factor | 20% | 70% | 88% | Full planes = demand being turned away |
-| Fare premium vs national fare-by-distance curve | 10% | −20% | +30% | Scarce seats / pricing power |
-| Airside headroom: annual ops ÷ runway annual service volume | 15% | 100% used | 30% used | Gates only pay off if runways can take more flights |
-| Carrier diversity: Herfindahl index (HHI) of seat shares | 10% | 0.60 | 0.15 | More airlines competing for new gates; less single-tenant risk |
-
-### Congestion index (0–100, higher = more congested)
-
-| KPI | Weight | 0 points | 100 points |
-|---|---|---|---|
-| Average daily peak-hour airline operations ÷ bad-weather (IFR) runway capacity | 25% | 50% | 150% |
-| Annual runway utilisation (ops ÷ annual service volume) | 20% | 30% | 100% |
-| Air-traffic-system (NAS) delay minutes per arrival | 20% | 0 | 15 min |
-| Arrivals delayed 15+ min | 15% | 15% | 45% |
-| Average taxi-out time | 20% | 10 min | 30 min |
-
-### Supporting models
-
-- **Runway capacity** (`analytics/capacity.py`), planning-level and based on FAA AC 150/5060-5 logic.
-  - Only open, paved runways of 5,000 ft or more count.
-  - The airport's best family of parallel runways drives capacity, classed by centreline spacing:
-    4,300 ft or more is independent; 2,500–4,300 ft is dependent in bad weather; under 2,500 ft acts as one runway in
-    bad weather.
-  - A single runway gives about 55 operations per hour in good weather (VFR) and 50 in bad weather (IFR).
-  - Annual service volume ≈ 3,200 × weather-weighted hourly capacity.
-  - Example: SFO's two pairs of runways are about 750 ft apart, giving 120 operations per hour in good weather and only
-    65 in bad weather.
-- **Unmet demand** uses the classic Swan *spill model*.
-  - Demand per flight is assumed to be normally distributed with a coefficient of variation of 0.30. The model solves
-    for the mean demand that reproduces the observed load factor.
-  - Spilled demand is converted into extra daily departures at an 85% load factor.
-  - Peak-hour operations above bad-weather capacity are reported separately as the runway-side shortfall.
-- **Long-haul** means 3,000 statute miles or more (about 6+ hours). There's no official definition, so shares at
-  2,000, 2,500 and 4,000 miles are always returned for sensitivity, along with the passenger vs cargo split.
-
-## 3. Where AI is used (and where it isn't)
-
-| Step | How |
+| Source | What it provides |
 |---|---|
-| Resolving airports, cities and regions ("LA", "Santa Ana", "Logan", "New England") | **Deterministic** registry built from OurAirports data |
-| Choosing which tool to call and with which arguments | **LLM** (Ollama tool calling); a keyword **router** takes over if the model makes no call, and bad arguments are repaired with the resolved entities |
-| All numbers, rankings, scores and capacity estimates | **Deterministic** Python |
-| Key takeaways for each tool result ("KEY FACTS") | **Deterministic**; given to the LLM first so a small model leads with the right facts |
-| Explaining the result in plain English, follow-up conversation | **LLM** |
-| Turning a spoken question into text | **Speech model**: Whisper (`faster-whisper`, `base.en`) running on the server |
-| Off-topic questions, and analyses that fail | **Deterministic** guards: a fixed reply instead of letting the LLM improvise |
-| Sources and assumptions under each answer | **Deterministic** footer, never generated |
+| BTS T-100 (by airport and by route) | Passengers, seats, flights, freight, distance, for every carrier including cargo |
+| BTS On-Time | Delays, taxi times, busiest-hour schedules |
+| DOT Airfare Report | Ticket prices by route |
+| OurAirports | Airport locations and runway layouts |
+| FAA NAS Status | Delay programs and ground stops right now |
 
-The LLM is local (`llama3.1:8b` by default, configurable via `OLLAMA_MODEL`), so no data leaves the machine and there
-are no API costs. Conversation memory keeps the last few turns plus a "focus" (the last airports or region discussed).
-That's what lets follow-ups like *"Why is Bangor ranked above Boston?"* or *"How does that compare to LAX?"* work.
+## 3. Scoring methodology
 
-## 4. Key tradeoffs
+Every score is built the same way:
 
-- **Live APIs vs speed.** Data is fetched at runtime and cached for a time-to-live set per source: 2 minutes for FAA
-  status, 1–30 days for statistics. The first run downloads about 40 MB and takes several minutes; after that, answers
-  build from cache in about 3 s plus LLM time.
-- **Small local LLM vs answer quality.** An 8B model on CPU takes about 40–75 s per answer and occasionally rephrases a
-  number loosely. To compensate:
-  - all arithmetic stays in tools;
-  - the takeaways are pre-written as KEY FACTS;
-  - the model is told to quote numbers verbatim.
+1. **Facts.** Measure each airport: size, growth, how full the planes are, and so on.
+2. **Points.** Place each fact on a fixed scale from 0 to 100. For example, planes 70% full score 0 points and 88%
+   full score 100. The scales are fixed, so an airport's score doesn't depend on which airports it's compared with.
+3. **Weighted score.** Combine the points using fixed weights.
 
-  A larger model would write better prose; the rankings would be identical.
-- **Fixed anchors vs relative scaling.** Scores are stable and comparable across questions, but the anchors are
-  judgement calls. They're listed above and in the `methodology` tool so an analyst can challenge them.
-- **Planning-level capacity vs FAA-published rates.** The geometry model works for every airport from public data, but
-  it ignores airspace, taxiway layout and crossing-runway interactions. It's suited to screening, not engineering.
-- **Proxies for terminal capacity.** Gate and terminal capacity isn't published as data. Load factor, fare premium and
-  growth capture the *symptoms* of terminal or airline constraints, not the floor area.
-- **Coverage gaps, stated rather than hidden.**
-  - On-time data covers one month and only reporting airlines (no cargo or foreign carriers).
-  - Fares cover the contiguous US only.
-  - Carrier concentration uses operating carriers, so regional partners count separately.
-  - Utilisation excludes general aviation (relevant at SNA).
+**Rank** sorts airports by their score. **Compare** shows scores side by side and highlights the biggest differences.
 
-## 5. Example outputs (data as of 2026-10-14)
+### Terminal-expansion score (higher = better investment candidate)
 
-- **New England terminal expansion:** PWM 68.8, BGR 68.5, BTV 64.5, BDL 61.2, PVD 57.0 (BOS 54.7: biggest market, but
-  runways at about 100% of annual capacity).
-- **LAX vs SNA congestion:** LAX 42.9 vs SNA 22.4. LAX uses 91% of runway capacity vs 60% at SNA. SNA's binding limit
-  is its passenger cap and curfew, not runway congestion.
-- **Anchorage long-haul:** 29.5% of 87k departures are 3,000+ mi, driven by cargo (51.6% of cargo flights vs 2.8% of
-  passenger flights).
-- **SFO unmet demand:** about 1.8M passengers a year (6.5% of demand), about 35 daily departures. The main reason is the
-  closely spaced runway pairs, which roughly halve arrival capacity in fog.
+| Fact | Weight | 0 points | 100 points | Why it matters |
+|---|---|---|---|---|
+| Market size (passengers, last 12 months) | 25% | 100k | 30M | More passengers = more revenue per new gate |
+| Passenger growth (year on year) | 20% | −5% | +10% | Demand is rising |
+| Load factor (how full the planes are) | 20% | 70% | 88% | Full planes = passengers being turned away |
+| Ticket prices vs the US norm for the distance | 10% | −20% | +30% | High fares signal scarce seats |
+| Runway room left | 15% | 100% used | 30% used | New gates only pay off if runways can take more flights |
+| Number of competing airlines | 10% | one dominant | many | More airlines to fill new gates |
+
+Example: Bradley (BDL) scores **61**. It's a solid market with full planes and plenty of runway room, but passenger
+numbers fell 2.3% last year.
+
+### Congestion index (higher = more congested)
+
+| Fact | Weight |
+|---|---|
+| Busiest-hour flights vs bad-weather runway capacity | 25% |
+| Yearly runway use vs estimated capacity | 20% |
+| Air-traffic delay minutes per arriving flight | 20% |
+| Share of arrivals 15+ minutes late | 15% |
+| Average time from gate to take-off | 20% |
+
+### Two supporting estimates
+
+- **Runway capacity** is estimated from runway layout. Runways far apart can work independently; runways close
+  together act as one in bad weather. SFO's runway pairs are only 750 ft apart, so its capacity roughly halves in fog.
+- **Unmet demand** uses a standard airline "spill" model. From how full the planes are, it estimates how many
+  passengers were turned away, then converts that into extra daily flights. SFO comes out at about 1.8M passengers,
+  or about 35 flights a day.
+
+If a fact is missing (for example, ticket prices don't exist for Alaska), it's skipped and the other weights are
+scaled up. The answer says how much of the score had data behind it.
+
+## 4. Where and how AI is used
+
+| Task | Done by |
+|---|---|
+| Turning speech into text | AI: Whisper speech model, running on the server |
+| Finding airports and regions in the question | Fixed rules |
+| Choosing which analysis to run | **AI model** (Ollama, `llama3.1:8b`); keyword rules as a fallback |
+| All numbers, scores and rankings | Fixed formulas |
+| Writing the answer in plain English | **AI model**, using only the analysis results |
+| Off-topic questions, failed analyses | Fixed reply; the AI isn't allowed to improvise |
+| Sources and assumptions under each answer | Fixed text from the data, never AI-written |
+
+Both AI models run on the server, so no question, recording or data is sent to an outside AI service, and there's no
+per-use cost.
+
+## 5. Key tradeoffs
+
+- **Live data vs speed.** Data comes from public APIs and is saved on disk. The first data pull takes several minutes;
+  after that, answers use saved data plus about a minute of AI writing time.
+- **Small local AI vs answer quality.** A local 8B model is private and free, but slower and sometimes words a number
+  loosely. The numbers themselves are always right, because the AI only explains them and never calculates them. A
+  larger model would write better, but rank the same.
+- **Fixed scales and weights.** These keep scores stable and comparable, but they're judgement calls. They're shown in
+  the app so an analyst can challenge them.
+- **Estimated runway capacity.** The app works it out from runway layout for every airport, which is good for screening
+  but less precise than the FAA's official rates.
+- **No terminal data.** Gate counts and terminal size aren't in the official datasets used here. The score therefore
+  measures the *symptoms* of a tight terminal (full planes, high fares, growth), not the terminal itself.
+- **Data gaps, stated rather than hidden.** Delay data covers one month and only the larger US airlines and their regional partners. Ticket prices
+  exist only for the lower 48 states. Runway use excludes private and military flights.
+- **One-day scope.** Simple, readable rules (a fallback router and fixed guards) were chosen over a complex
+  multi-step agent.
