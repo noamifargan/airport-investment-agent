@@ -195,21 +195,6 @@ async function loadLive() {
   }
 }
 
-async function loadSources() {
-  const listEl = $("#source-list");
-  try {
-    const sources = await (await fetch("/api/sources")).json();
-    listEl.innerHTML = sources.map((s) => {
-      const mode = s.mode === "live" ? ["live", "Live"] : s.mode === "cache" ? ["cache", "Cached"] : ["stale", "Stale copy"];
-      const cov = s.coverage && s.coverage !== "current" && s.coverage !== "real-time" ? `Covers ${s.coverage.replace("..", " to ")}` : (s.coverage === "real-time" ? "Real time" : "Current");
-      return `<li><span class="source-name">${esc(s.source)}</span>` +
-             `<span class="source-meta"><span class="mode mode-${mode[0]}">${mode[1]}</span>${esc(cov)}, pulled ${esc(s.age)}</span></li>`;
-    }).join("");
-  } catch {
-    listEl.innerHTML = '<li class="muted">Couldn\'t load the data status.</li>';
-  }
-}
-
 async function loadMethod() {
   try {
     const m = await (await fetch("/api/methodology")).json();
@@ -241,5 +226,5 @@ input.addEventListener("input", autosize);
 document.querySelectorAll(".ask-example").forEach((b) => b.addEventListener("click", () => ask(b.textContent)));
 $("#new-chat").addEventListener("click", resetChat);
 
-loadInfo(); loadLive(); loadSources(); loadMethod();
+loadInfo(); loadLive(); loadMethod();
 setInterval(loadLive, 120000);

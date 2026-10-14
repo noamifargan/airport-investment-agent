@@ -13,7 +13,6 @@ from pydantic import BaseModel
 
 from airport_agent.agent.agent import Session, ask
 from airport_agent.analytics import scoring
-from airport_agent.analytics.features import features
 from airport_agent.config import settings
 from airport_agent.data.sources import nas_status
 from airport_agent.data.store import DataUnavailable
@@ -37,19 +36,6 @@ def index() -> FileResponse:
 @app.get("/api/info")
 def info() -> dict:
     return {"model": settings.ollama_model, "offline": settings.offline}
-
-
-@app.get("/api/sources")
-def sources() -> list[dict]:
-    """Datasets behind the KPI table, with live/cache status and the period they cover."""
-    _, provs = features()
-    out = [{"source": p.source.split(" (")[0], "mode": p.mode, "age": p.age(), "coverage": p.coverage, "url": p.url} for p in provs]
-    try:
-        p = nas_status.current_events()[2]
-        out.append({"source": p.source, "mode": p.mode, "age": p.age(), "coverage": p.coverage, "url": p.url})
-    except DataUnavailable:
-        pass
-    return out
 
 
 @app.get("/api/methodology")
