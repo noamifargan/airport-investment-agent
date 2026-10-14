@@ -8,7 +8,7 @@ Status legend: `[x]` done · `[ ]` pending
 - [ ] **3. Connectors**
   - [x] 3a OurAirports — airport registry, regions, runway geometry, name resolver
   - [x] 3b BTS T-100 by origin airport (Socrata `r495-tyji`) — monthly traffic per airport
-  - [ ] 3c BTS T-100 Segment, all carriers (TranStats) — route-level distance / load factor
+  - [x] 3c BTS T-100 Segment, all carriers (TranStats) — route-level distance / load factor
   - [ ] 3d BTS On-Time Reporting (TranStats PREZIP) — delays, taxi-out, peak-hour schedule
   - [ ] 3e DOT Consumer Airfare Report Table 1a (Socrata `tfrh-tu9e`) — fares, concentration
   - [ ] 3f FAA NAS Status (live XML) — ground delay programs, ground stops, closures
