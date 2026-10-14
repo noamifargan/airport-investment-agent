@@ -4,7 +4,7 @@ Status legend: `[x]` done · `[ ]` pending
 
 - [x] **0. Data reconnaissance** — verify which public aviation sources are reachable without keys
 - [x] **1. Project scaffold** — uv package, `src/` layout, settings, git
-- [ ] **2. Data foundation** — HTTP client, TTL disk cache, provenance, live → cache → snapshot fallback
+- [x] **2. Data foundation** — HTTP client, TTL disk cache, provenance, live → cache → snapshot fallback
 - [ ] **3. Connectors**
   - [ ] 3a OurAirports — airport registry, regions, runway geometry, name resolver
   - [ ] 3b BTS T-100 by origin airport (Socrata `r495-tyji`) — monthly traffic per airport
