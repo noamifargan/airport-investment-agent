@@ -240,8 +240,8 @@ def route_mix(airport: str, long_haul_miles: int = LONG_HAUL_MI) -> dict:
     lh_all, lh_pax, lh_cargo = _pct(lh["departures"].sum() / total), share(~r["cargo"]), share(r["cargo"])
     cargo_share = _pct(r.loc[r["cargo"], "departures"].sum() / total)
     headline = (f"{lh_all} of {code}'s {int(total):,} departures (12 months) are long-haul (≥ {long_haul_miles:,} mi). "
-                f"By type: {lh_cargo} of cargo flights vs {lh_pax} of passenger flights are long-haul; "
-                f"cargo is {cargo_share} of all departures.")
+                f"Among cargo flights only, {lh_cargo} are long-haul; among passenger flights only, {lh_pax} are long-haul. "
+                f"Cargo flights are {cargo_share} of all departures, so cargo drives the long-haul share.")
     return {
         "result": {
             "headline": headline,

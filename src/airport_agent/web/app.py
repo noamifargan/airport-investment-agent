@@ -1,4 +1,4 @@
-"""Minimal web chat: FastAPI backend streaming agent events as NDJSON to a single static page."""
+"""Web app: FastAPI backend streaming agent events as NDJSON, plus a few read-only data endpoints for the UI."""
 
 from __future__ import annotations
 
@@ -8,13 +8,19 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from airport_agent.agent.agent import Session, ask
+from airport_agent.analytics import scoring
+from airport_agent.analytics.features import features
 from airport_agent.config import settings
+from airport_agent.data.sources import nas_status
+from airport_agent.data.store import DataUnavailable
 
 STATIC = Path(__file__).parent / "static"
-app = FastAPI(title="Airport Investment Intelligence Agent")
+app = FastAPI(title="Airport Investment Intelligence")
+app.mount("/static", StaticFiles(directory=STATIC), name="static")
 SESSIONS: dict[str, Session] = {}
 
 
@@ -31,6 +37,35 @@ def index() -> FileResponse:
 @app.get("/api/info")
 def info() -> dict:
     return {"model": settings.ollama_model, "offline": settings.offline}
+
+
+@app.get("/api/sources")
+def sources() -> list[dict]:
+    """Datasets behind the KPI table, with live/cache status and the period they cover."""
+    _, provs = features()
+    out = [{"source": p.source.split(" (")[0], "mode": p.mode, "age": p.age(), "coverage": p.coverage, "url": p.url} for p in provs]
+    try:
+        p = nas_status.current_events()[2]
+        out.append({"source": p.source, "mode": p.mode, "age": p.age(), "coverage": p.coverage, "url": p.url})
+    except DataUnavailable:
+        pass
+    return out
+
+
+@app.get("/api/methodology")
+def methodology() -> dict:
+    return scoring.methodology()
+
+
+@app.get("/api/live")
+def live() -> dict:
+    """Current FAA delay programs, ground stops and delays (closure NOTAMs are counted, not listed)."""
+    try:
+        events, updated, _ = nas_status.current_events()
+    except DataUnavailable:
+        return {"available": False, "events": [], "notices": 0, "updated": ""}
+    major = [e for e in events if e["type"] != "Closure/restriction NOTAM"]
+    return {"available": True, "events": major, "notices": len(events) - len(major), "updated": updated}
 
 
 @app.post("/api/chat")

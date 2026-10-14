@@ -146,17 +146,17 @@ def _remember(session: Session, calls: list[tuple[str, dict]], res: Resolution) 
             session.focus_region = args["region"]
 
 
-def _footer(results: list[dict]) -> str:
+def _footer(results: list[dict]) -> dict:
     sources, assumptions = [], []
     for r in results:
         sources += [s for s in r.get("sources", []) if s not in sources]
         assumptions += [a for a in r.get("assumptions", []) if a not in assumptions]
-    if not sources and not assumptions:
-        return ""
-    lines = ["", "---", "**Data sources**"] + [f"- {s}" for s in sources]
+    lines = []
+    if sources:
+        lines += ["", "---", "**Data sources**"] + [f"- {s}" for s in sources]
     if assumptions:
         lines += ["", "**Assumptions & uncertainty**"] + [f"- {a}" for a in assumptions]
-    return "\n".join(lines)
+    return {"type": "footer", "text": "\n".join(lines), "sources": sources, "assumptions": assumptions}
 
 
 def ask(question: str, session: Session) -> Iterator[dict]:
@@ -197,7 +197,8 @@ def ask(question: str, session: Session) -> Iterator[dict]:
     results = []
     messages.append({"role": "assistant", "content": "", "tool_calls": [{"function": {"name": n, "arguments": a}} for n, a in calls]})
     for name, args in calls[:3]:
-        yield {"type": "tool", "text": f"{name}({json.dumps(args)}) — chosen by {chosen_by}"}
+        yield {"type": "tool", "text": f"{name}({json.dumps(args)}) — chosen by {chosen_by}",
+               "name": name, "args": args, "chosen_by": "router" if chosen_by.startswith("router") else "llm"}
         out = _run(name, args, res, session)
         results.append(out)
         messages.append({"role": "tool", "tool_name": name, "content": _tool_message(out)})
@@ -213,6 +214,6 @@ def ask(question: str, session: Session) -> Iterator[dict]:
         answer = "LLM unavailable — raw tool results:\n```json\n" + json.dumps([r.get("result", r) for r in results], indent=1, ensure_ascii=False) + "\n```"
         yield {"type": "token", "text": answer}
 
-    yield {"type": "footer", "text": _footer(results)}
+    yield _footer(results)
     session.history += [{"role": "user", "content": question}, {"role": "assistant", "content": answer}]
     yield {"type": "done"}

@@ -48,6 +48,9 @@ class Provenance:
     note: str = ""
     extra: dict = field(default_factory=dict)
 
+    def age(self) -> str:
+        return _age_text(self.fetched_at)
+
     def short(self) -> str:
         age = _age_text(self.fetched_at)
         cov = f", data {self.coverage}" if self.coverage else ""

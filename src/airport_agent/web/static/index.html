@@ -3,123 +3,115 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Airport Investment Agent</title>
-<style>
-  :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --muted:#6b7385; --line:#e3e6ec; --accent:#1f5eff; --user:#e8efff; }
-  @media (prefers-color-scheme: dark) {
-    :root { --bg:#12151b; --card:#1b1f27; --ink:#e7eaf0; --muted:#98a0b2; --line:#2b313d; --accent:#6d9bff; --user:#1f2a44; }
-  }
-  * { box-sizing: border-box; }
-  body { margin:0; font:15px/1.5 system-ui, -apple-system, Segoe UI, sans-serif; background:var(--bg); color:var(--ink); }
-  header { padding:14px 20px; border-bottom:1px solid var(--line); background:var(--card); display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
-  header h1 { font-size:17px; margin:0; }
-  header span { color:var(--muted); font-size:13px; }
-  main { max-width:880px; margin:0 auto; padding:16px 16px 140px; }
-  .msg { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 16px; margin:12px 0; overflow-x:auto; }
-  .msg.user { background:var(--user); border-color:transparent; margin-left:15%; }
-  .trace { color:var(--muted); font-size:12.5px; font-family:ui-monospace, monospace; margin:2px 0; }
-  .footer { color:var(--muted); font-size:13px; border-top:1px dashed var(--line); margin-top:10px; padding-top:6px; }
-  .examples { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 16px; }
-  .examples button { background:var(--card); color:var(--ink); border:1px solid var(--line); border-radius:16px; padding:6px 12px; cursor:pointer; font-size:13.5px; }
-  .examples button:hover { border-color:var(--accent); }
-  form { position:fixed; bottom:0; left:0; right:0; background:var(--card); border-top:1px solid var(--line); padding:12px 16px; }
-  .row { max-width:880px; margin:0 auto; display:flex; gap:8px; }
-  textarea { flex:1; resize:none; height:52px; padding:10px; border-radius:8px; border:1px solid var(--line); background:var(--bg); color:var(--ink); font:inherit; }
-  button.send { background:var(--accent); color:#fff; border:0; border-radius:8px; padding:0 18px; font-weight:600; cursor:pointer; }
-  button.send:disabled { opacity:.5; cursor:wait; }
-  button.ghost { background:none; border:1px solid var(--line); color:var(--muted); border-radius:8px; padding:0 12px; cursor:pointer; }
-  ul { padding-left:20px; margin:6px 0; } p { margin:6px 0; } code { font-size:13px; }
-  pre { background:var(--bg); padding:8px; border-radius:6px; overflow-x:auto; }
-</style>
+<title>Airport Investment Intelligence</title>
+<meta name="description" content="Find the US airports where new terminal capacity pays off, using public BTS, DOT and FAA data.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=B612:wght@400;700&family=Public+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/styles.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='11' fill='none' stroke='%231D5FA8' stroke-width='3'/%3E%3Cpath d='M9 13h14M9 19h14M12 9l8 14' stroke='%231D5FA8' stroke-width='2.4'/%3E%3C/svg%3E">
 </head>
 <body>
-<header>
-  <h1>Airport Investment Intelligence Agent</h1>
-  <span id="info">US airports · public BTS / DOT / FAA data · local LLM via Ollama</span>
+<a class="skip" href="#composer-input">Skip to the question box</a>
+
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="/" aria-label="Airport Investment Intelligence, home">
+      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+        <circle cx="16" cy="16" r="11" />
+        <path d="M16 2v3M16 27v3M2 16h3M27 16h3" class="ticks" />
+        <path d="M9 13h14M9 19h14M12 9l8 14" class="rw" />
+      </svg>
+      <span>Airport Investment Intelligence</span>
+    </a>
+    <nav class="nav-links" aria-label="Page">
+      <a href="#sources">Data</a>
+      <a href="#method">Scoring</a>
+      <button type="button" class="btn-quiet" id="new-chat" hidden>New conversation</button>
+    </nav>
+  </div>
 </header>
-<main id="log">
-  <div class="msg">
-    <p>Ask about US airports — rankings by region, congestion comparisons, route mix, or unmet demand. Follow-up questions keep context.</p>
-    <div class="examples">
-      <button>Which airports in New England are strong candidates for terminal expansion?</button>
-      <button>Compare LA and Santa Ana airport congestion levels.</button>
-      <button>What is the percentage of long haul flights out of Anchorage airport?</button>
-      <button>What is the unmet flight demand in SFO airport and why?</button>
+
+<div class="live" role="region" aria-label="FAA airport status right now">
+  <div class="wrap live-inner">
+    <span class="live-label"><span class="live-dot" aria-hidden="true"></span>FAA status now</span>
+    <div class="live-events" id="live-events">Checking the FAA feed…</div>
+  </div>
+</div>
+
+<section class="hero" id="hero">
+  <div class="wrap hero-inner">
+    <div class="hero-copy">
+      <h1>Find the US airports where new capacity pays off.</h1>
+      <p class="lede">Ask about passenger growth, congestion, route mix or unmet demand. Every answer is built from
+        public BTS, DOT and FAA data, and shows where its numbers came from.</p>
+      <form class="composer" id="composer">
+        <label class="visually-hidden" for="composer-input">Your question</label>
+        <textarea id="composer-input" rows="1" placeholder="Ask about an airport, a city or a region"></textarea>
+        <button type="submit" class="btn-primary" id="ask-btn">Ask</button>
+      </form>
     </div>
+    <figure class="chart-symbol" aria-hidden="true">
+      <svg viewBox="0 0 240 240">
+        <circle cx="120" cy="120" r="74" class="ring" />
+        <path d="M120 30v16M120 194v16M30 120h16M194 120h16" class="ring" />
+        <path d="M66 104l108 -22M70 124l108 -22" class="runway" />
+        <path d="M92 78l46 92M102 74l46 92" class="runway" />
+      </svg>
+      <figcaption>
+        <span class="chart-name">San Francisco Intl (SFO)</span>
+        <span class="chart-note">Runway pairs 750 ft apart</span>
+      </figcaption>
+    </figure>
   </div>
-</main>
-<form id="form">
-  <div class="row">
-    <textarea id="input" placeholder="Ask a question… (Enter to send, Shift+Enter for a new line)"></textarea>
-    <button class="send" id="send">Send</button>
-    <button class="ghost" type="button" id="reset" title="Start a new conversation">New</button>
-  </div>
-</form>
-<script>
-const log = document.getElementById('log'), input = document.getElementById('input'), send = document.getElementById('send');
-let sessionId = null;
+</section>
 
-fetch('/api/info').then(r => r.json()).then(i => {
-  document.getElementById('info').textContent = `US airports · public BTS / DOT / FAA data · local LLM: ${i.model}`;
-}).catch(() => {});
+<div class="wrap page">
+  <main class="main" id="main">
+    <section class="start" id="start" aria-labelledby="start-title">
+      <h2 id="start-title">Starting points</h2>
+      <ul class="start-list">
+        <li><button type="button" class="ask-example">Which airports in New England are strong candidates for terminal expansion?</button>
+          <p>Ranks every New England airport on the terminal-expansion score.</p></li>
+        <li><button type="button" class="ask-example">Compare LA and Santa Ana airport congestion levels.</button>
+          <p>Puts LAX and SNA side by side on runway use, peak-hour load and delays.</p></li>
+        <li><button type="button" class="ask-example">What is the percentage of long haul flights out of Anchorage airport?</button>
+          <p>Splits a year of Anchorage departures by distance, passenger and cargo.</p></li>
+        <li><button type="button" class="ask-example">What is the unmet flight demand in SFO airport and why?</button>
+          <p>Estimates the passengers and flights turned away, and the constraint behind them.</p></li>
+      </ul>
+      <p class="start-note">Follow-up questions keep the context, so you can ask “why?” or “how does that compare to Boston?”.</p>
+    </section>
+    <section class="thread" id="thread" aria-live="polite"></section>
+  </main>
 
-const esc = s => s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
-function md(text) {  // tiny markdown renderer: headings, bullets, bold/italic, code, rules, links
-  const blocks = esc(text).split(/```/);
-  return blocks.map((b, i) => i % 2 ? `<pre><code>${b.replace(/^\w*\n/, '')}</code></pre>` : b.split('\n').reduce((acc, line) => {
-    const inline = l => l.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/(^|\W)\*(?!\s)(.+?)\*(?=\W|$)/g, '$1<i>$2</i>')
-      .replace(/`([^`]+)`/g, '<code>$1</code>').replace(/(https?:\/\/[^\s)<]+)/g, '<a href="$1" target="_blank">$1</a>');
-    const li = line.match(/^\s*(?:[-*•]|\d+\.)\s+(.*)/);
-    if (li) { acc.list.push(`<li>${inline(li[1])}</li>`); return acc; }
-    if (acc.list.length) { acc.out.push(`<ul>${acc.list.join('')}</ul>`); acc.list = []; }
-    if (/^---+$/.test(line.trim())) acc.out.push('');
-    else if (/^#{1,4}\s/.test(line)) acc.out.push(`<p><b>${inline(line.replace(/^#+\s/, ''))}</b></p>`);
-    else if (line.trim()) acc.out.push(`<p>${inline(line)}</p>`);
-    return acc;
-  }, {out: [], list: []})).map(r => typeof r === 'string' ? r : r.out.join('') + (r.list.length ? `<ul>${r.list.join('')}</ul>` : '')).join('');
-}
+  <aside class="side">
+    <section class="panel" id="sources" aria-labelledby="sources-title">
+      <h2 id="sources-title">Data in use</h2>
+      <ul class="source-list" id="source-list"><li class="muted">Loading…</li></ul>
+    </section>
+    <section class="panel" id="method" aria-labelledby="method-title">
+      <h2 id="method-title">How airports are scored</h2>
+      <p>The terminal-expansion score runs from 0 to 100. Each measure is placed on a fixed scale, then weighted:</p>
+      <ul class="weights" id="weights-te"></ul>
+      <details class="more">
+        <summary>Congestion index weights</summary>
+        <ul class="weights" id="weights-cg"></ul>
+      </details>
+    </section>
+    <section class="panel panel-plain">
+      <h2>Who does what</h2>
+      <p>Numbers, rankings and scores come from the data and fixed formulas. The language model
+        (<span id="model-name">local</span>, running on this server through Ollama) picks which analysis to run and
+        explains the result.</p>
+    </section>
+  </aside>
+</div>
 
-function add(cls, html) { const d = document.createElement('div'); d.className = 'msg ' + cls; d.innerHTML = html; log.appendChild(d); d.scrollIntoView({block: 'end'}); return d; }
+<footer class="site-footer">
+  <div class="wrap">Sources: BTS T-100 and On-Time, DOT Airfare Report, FAA NAS Status, OurAirports. A research prototype for screening, not investment advice.</div>
+</footer>
 
-async function ask(question) {
-  add('user', esc(question));
-  const box = add('bot', '<div class="trace">thinking…</div>');
-  const trace = box.firstChild, body = document.createElement('div'), foot = document.createElement('div');
-  foot.className = 'footer'; box.append(body, foot);
-  let answer = '', traces = [];
-  send.disabled = true;
-  try {
-    const resp = await fetch('/api/chat', {method: 'POST', headers: {'Content-Type': 'application/json'},
-                                           body: JSON.stringify({message: question, session_id: sessionId})});
-    const reader = resp.body.getReader(), dec = new TextDecoder();
-    let buf = '';
-    for (;;) {
-      const {value, done} = await reader.read();
-      if (done) break;
-      buf += dec.decode(value, {stream: true});
-      const lines = buf.split('\n'); buf = lines.pop();
-      for (const line of lines) {
-        if (!line.trim()) continue;
-        const ev = JSON.parse(line);
-        if (ev.type === 'session') sessionId = ev.id;
-        else if (ev.type === 'status' || ev.type === 'tool') { traces.push((ev.type === 'tool' ? '⚙ ' : '· ') + ev.text); trace.innerHTML = traces.map(esc).join('<br>'); }
-        else if (ev.type === 'token') { answer += ev.text; body.innerHTML = md(answer); }
-        else if (ev.type === 'footer') foot.innerHTML = md(ev.text);
-        else if (ev.type === 'error') body.innerHTML += `<p><b>Error:</b> ${esc(ev.text)}</p>`;
-      }
-      box.scrollIntoView({block: 'end'});
-    }
-  } catch (e) { body.innerHTML += `<p><b>Error:</b> ${esc(String(e))}</p>`; }
-  send.disabled = false; input.focus();
-}
-
-document.getElementById('form').addEventListener('submit', e => { e.preventDefault(); const q = input.value.trim(); if (q && !send.disabled) { input.value = ''; ask(q); } });
-input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); document.getElementById('form').requestSubmit(); } });
-document.querySelectorAll('.examples button').forEach(b => b.addEventListener('click', () => { if (!send.disabled) ask(b.textContent); }));
-document.getElementById('reset').addEventListener('click', () => {
-  fetch('/api/reset', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({message: '', session_id: sessionId})});
-  sessionId = null; log.querySelectorAll('.msg:not(:first-child)').forEach(m => m.remove());
-});
-</script>
+<script src="/static/app.js"></script>
 </body>
 </html>
