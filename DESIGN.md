@@ -35,7 +35,8 @@ explains the result in plain English.
 3. **The AI picks the analysis.** It chooses one of: rank airports, compare airports, airport profile, route mix,
    unmet demand, or live FAA status. If it doesn't choose, keyword rules pick one instead.
 4. **The analysis runs on real data.** Facts and scores are calculated by formulas, not by the AI.
-5. **The AI writes the answer** from those results, and is told to quote the numbers exactly.
+5. **The AI writes the answer** from those results, and is told to quote the numbers exactly. It also gets a short
+   skill (`SKILL.md`) for that kind of question (for example, "for unmet demand, lead with passengers per year").
 6. **The app adds sources and assumptions** under the answer: which datasets, how fresh, and which caveats apply.
 7. **The conversation is remembered**, so follow-ups like "why?" or "how does that compare to LAX?" work.
 
@@ -110,6 +111,11 @@ scaled up. The answer says how much of the score had data behind it.
 
 Both AI models run on the server, so no question, recording or data is sent to an outside AI service, and there's no
 per-use cost.
+
+The AI's instructions are plain markdown files in `backend/.../agent/prompts/`: a system prompt, the answer rules, and
+one skill folder per kind of question (ranking, comparison, route mix, unmet demand), each with a `SKILL.md` in the
+standard skill format: a name and description, then the instructions. A skill is loaded only when its analysis runs, so
+the small model reads only the instructions that apply, and analysts can edit them without touching code.
 
 ## 5. Key tradeoffs
 

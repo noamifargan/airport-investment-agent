@@ -64,6 +64,8 @@ backend/                     Python project (uv): API server, agent, data, analy
     api/app.py               FastAPI: chat stream (NDJSON), voice transcription, scoring weights; serves the frontend
     voice.py                 local speech-to-text (faster-whisper)
     agent/                   tools, Ollama client, agent loop
+    agent/prompts/           the model's instructions as markdown: system, answer rules,
+                             skills/<name>/SKILL.md per question type
     analytics/               runway capacity, KPI table, scores, curated constraints
     data/store.py            fetch-with-fallback cache + provenance
     data/sources/            one connector per public source

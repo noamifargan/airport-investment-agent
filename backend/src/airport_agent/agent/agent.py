@@ -6,6 +6,8 @@ Where the LLM is used (and where it isn't):
   one, a keyword router picks a tool deterministically so the user still gets data.
 * Every number comes from a tool; the LLM only explains it.
 * Sources and assumptions shown under each answer are appended deterministically, not generated.
+* The model's instructions are markdown files in prompts/: the system prompt, the answer rules, and one
+  skill folder (skills/<name>/SKILL.md) per kind of question, loaded only when that tool runs.
 """
 
 from __future__ import annotations
@@ -13,29 +15,34 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Iterator
 
 from airport_agent.agent import llm
-from airport_agent.agent.tools import SCHEMAS, TOOLS, ToolError
+from airport_agent.agent.tools import SCHEMAS, TOOLS
 from airport_agent.analytics.features import features
 from airport_agent.data.registry import Resolution, registry
 
-SYSTEM = """You are an aviation investment analyst assistant for a firm that invests in US airport terminal modernization.
-You help analysts find airports where renovation/expansion would be most profitable based on flight and passenger capacity.
+PROMPTS = Path(__file__).parent / "prompts"
 
-Rules:
-- Always get data with a tool before answering questions about airports. Never invent numbers.
-- Use the airport codes and regions given in [Resolved] when calling tools.
-- When you answer: lead with the direct answer, then the key numbers that drive it, then why.
-- Quote numbers exactly as the tool gives them. Mention the most important assumption or uncertainty in one line.
-- If data is missing for something, say so plainly. Keep answers under 250 words, using short bullets."""
 
-ANSWER_NUDGE = (
-    "Using only the tool results above, answer the analyst's question. Lead with the direct answer and include every "
-    "KEY FACT, then explain the drivers, then note the key uncertainty in one line. Only quote numbers that appear "
-    "verbatim in the tool results; never compute or relabel numbers. Write plain English: never mention JSON field "
-    "names or the words 'KEY FACTS'. Do not list sources; they are appended automatically."
-)
+def _skill(path: Path) -> dict:
+    """A skill's SKILL.md: frontmatter (name, description) between '---' lines, then markdown instructions."""
+    _, meta, body = path.read_text().split("---", 2)
+    fields = dict(line.split(":", 1) for line in meta.strip().splitlines())
+    return {key.strip(): value.strip() for key, value in fields.items()} | {"body": body.strip()}
+
+
+SYSTEM = (PROMPTS / "system.md").read_text().strip()
+ANSWER_NUDGE = (PROMPTS / "answer.md").read_text().strip()
+# One folder per skill, skills/<name>/SKILL.md; skill "unmet-demand" guides the answer for tool unmet_demand.
+SKILLS = {s["name"].replace("-", "_"): s for s in map(_skill, sorted((PROMPTS / "skills").glob("*/SKILL.md")))}
+
+
+def _answer_prompt(tools: list[str]) -> str:
+    """Answer rules plus the SKILL.md of each tool that ran."""
+    guides = [f"Skill {SKILLS[t]['name']}: {SKILLS[t]['description']}\n{SKILLS[t]['body']}" for t in dict.fromkeys(tools) if t in SKILLS]
+    return "\n\n".join([ANSWER_NUDGE, *guides])
 
 
 OFF_TOPIC = (
@@ -95,7 +102,8 @@ def route(question: str, res: Resolution, session: Session) -> list[tuple[str, d
     if airports and re.search(r"right now|currently|today|live|ground stop", q):
         return [("live_status", {"airport": airports[0]})]
     if len(airports) >= 2:
-        return [("compare_airports", {"airports": airports, "metric": metric if congestion or "expan" in q else "congestion"})]
+        investment = re.search(r"expan|rank|candidate|invest|terminal", q)
+        return [("compare_airports", {"airports": airports, "metric": metric if congestion or investment else "congestion"})]
     if region and not res.airports:
         return [("rank_airports", {"region": region, "metric": metric})]
     if airports:
@@ -110,7 +118,7 @@ def _run(name: str, args: dict, res: Resolution, session: Session) -> dict:
     args = {k: v for k, v in (args or {}).items() if v not in (None, "", [])}
     try:
         return fn(**args)
-    except (ToolError, TypeError) as exc:
+    except (ValueError, TypeError) as exc:  # ToolError is a ValueError; bad argument values raise either
         # Repair obviously bad arguments with the deterministically resolved entities, then retry once.
         fixed = dict(args)
         airports = res.airports or session.focus_airports
@@ -124,7 +132,7 @@ def _run(name: str, args: dict, res: Resolution, session: Session) -> dict:
         if fixed != args:
             try:
                 return fn(**fixed)
-            except (ToolError, TypeError):
+            except (ValueError, TypeError):
                 pass
         return {"error": str(exc)}
 
@@ -232,7 +240,8 @@ def ask(question: str, session: Session) -> Iterator[dict]:
         yield {"type": "done"}
         return
 
-    messages.append({"role": "user", "content": ANSWER_NUDGE})
+    ran = [name for (name, _), out in zip(calls, results) if "error" not in out]
+    messages.append({"role": "user", "content": _answer_prompt(ran)})
     answer = ""
     try:
         for token in llm.stream(messages):

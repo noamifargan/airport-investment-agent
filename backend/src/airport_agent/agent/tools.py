@@ -162,7 +162,10 @@ def rank_airports(region: str, metric: str = "terminal_expansion", top_n: int = 
 
 
 def compare_airports(airports: list[str], metric: str = "congestion") -> dict:
-    """Side-by-side KPIs, scores, live FAA status and known constraints for 2+ airports."""
+    """Side-by-side KPIs, scores and known constraints for 2+ airports.
+
+    Live FAA status is left out on purpose: a small model confused today's delays with structural constraints.
+    """
     if metric not in scoring.MODELS:
         metric = "congestion"
     codes = _codes(airports)
@@ -171,10 +174,10 @@ def compare_airports(airports: list[str], metric: str = "congestion") -> dict:
     for code in codes:
         detail = scoring.score_row(df.loc[code], metric)
         rows.append({**_kpis(code), f"{metric}_score": detail["score"], "score_breakdown": detail["components"],
-                     "live_faa_status": _live(code), "known_constraints": [c["fact"] for c in KNOWN_CONSTRAINTS.get(code, [])]})
+                     "known_constraints": [c["fact"] for c in KNOWN_CONSTRAINTS.get(code, [])]})
     return {
         "result": {"headline": _compare_headline(codes, rows, metric), "metric": metric, "airports": rows},
-        "sources": _sources("T-100", "OurAirports", "On-Time", "Airfare") + _live_source(),
+        "sources": _sources("T-100", "OurAirports", "On-Time", "Airfare"),
         "assumptions": _assumptions("ontime", "capacity", "score", "traffic"),
     }
 
@@ -183,7 +186,10 @@ def _compare_headline(codes: list[str], rows: list[dict], metric: str) -> list[s
     """Deterministic takeaways so even a small LLM leads with the right facts."""
     label = "congestion index (0-100, higher = more congested)" if metric == "congestion" else "terminal-expansion score (0-100)"
     order = sorted(zip(codes, rows), key=lambda cr: cr[1][f"{metric}_score"], reverse=True)
-    lines = [f"{label}: " + " vs ".join(f"{c} {r[f'{metric}_score']}" for c, r in order)]
+    others = ", ".join(c for c, _ in order[1:])
+    verdict = "is more congested than" if metric == "congestion" else "is a stronger terminal-expansion candidate than"
+    lines = [f"{order[0][0]} {verdict} {others}",
+             f"{label}: " + " vs ".join(f"{c} {r[f'{metric}_score']}" for c, r in order)]
     first, last = order[0][1]["score_breakdown"], order[-1][1]["score_breakdown"]
     gaps = []
     for a in first:
@@ -222,6 +228,7 @@ def airport_profile(airport: str) -> dict:
 def route_mix(airport: str, long_haul_miles: int = LONG_HAUL_MI) -> dict:
     """Share of departures by distance band (passenger vs cargo) and the main long-haul routes."""
     code = _codes(airport)[0]
+    long_haul_miles = int(long_haul_miles)  # small models often send numbers as strings ("3000")
     routes, prov = route_table()
     r = routes[routes["origin"] == code]
     if r.empty:
