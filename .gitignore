@@ -11,5 +11,5 @@ wheels/
 
 # Local config and runtime data
 .env
-data/cache/
+backend/data/cache/
 .pytest_cache/

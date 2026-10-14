@@ -11,8 +11,11 @@ See **[DESIGN.md](DESIGN.md)** for the scoring methodology, tradeoffs and where 
 
 Requirements: [uv](https://docs.astral.sh/uv/), [Ollama](https://ollama.com) and internet access to the public APIs.
 
+All commands run from the `backend/` folder:
+
 ```bash
 ollama pull llama3.1:8b                # default model (any tool-capable Ollama model works)
+cd backend
 uv sync                                # create the environment
 uv run airport-agent refresh           # first data pull, ~40 MB; takes several minutes, then cached
 ```
@@ -20,9 +23,10 @@ uv run airport-agent refresh           # first data pull, ~40 MB; takes several 
 ## Run
 
 ```bash
-uv run airport-agent serve             # web chat → http://127.0.0.1:8000
+uv run airport-agent serve             # web chat → http://127.0.0.1:8000 (serves ../frontend)
 uv run airport-agent chat              # terminal chat
 uv run airport-agent ask "Compare LA and Santa Ana airport congestion levels."
+uv run pytest                          # tests
 ```
 
 Example questions:
@@ -37,24 +41,32 @@ data period) and the assumptions behind the numbers.
 
 ## Configuration
 
-Set these as environment variables or in a `.env` file (see `.env.example`):
+Set these as environment variables or in `backend/.env` (see `backend/.env.example`):
 
 | Variable | Default | Purpose |
 |---|---|---|
 | `OLLAMA_MODEL` | `llama3.1:8b` | Local model used for tool choice and answers |
 | `OLLAMA_HOST` | `http://localhost:11434` | Ollama server |
 | `OFFLINE` | `0` | `1` = no network; answer from the disk cache only |
-| `AIRPORT_AGENT_DATA_DIR` | `./data` | Cache location |
+| `AIRPORT_AGENT_DATA_DIR` | `backend/data` | Cache location |
+| `AIRPORT_AGENT_FRONTEND_DIR` | `frontend` | Web page the server serves |
 
 ## Project layout
 
 ```
-src/airport_agent/
-  data/store.py          fetch-with-fallback cache + provenance
-  data/sources/          one connector per public source
-  data/registry.py       deterministic airport / city / region resolver
-  analytics/             runway capacity, KPI table, scores, curated constraints
-  agent/                 tools, Ollama client, agent loop
-  web/                   FastAPI + single-page chat UI
-tests/                   uv run pytest
+backend/                     Python project (uv): API server, agent, data, analytics
+  src/airport_agent/
+    api/app.py               FastAPI: chat stream (NDJSON), live FAA status, scoring weights; serves the frontend
+    agent/                   tools, Ollama client, agent loop
+    analytics/               runway capacity, KPI table, scores, curated constraints
+    data/store.py            fetch-with-fallback cache + provenance
+    data/sources/            one connector per public source
+    data/registry.py         deterministic airport / city / region resolver
+    cli.py, config.py        `airport-agent` command and settings
+  tests/
+  data/cache/                downloaded API data (git-ignored)
+frontend/                    static web page, no build step
+  index.html
+  assets/styles.css, assets/app.js
+DESIGN.md, PLAN.md
 ```

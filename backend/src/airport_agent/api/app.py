@@ -1,11 +1,9 @@
-"""Web app: FastAPI backend streaming agent events as NDJSON, plus a few read-only data endpoints for the UI."""
+"""API server: streams agent events as NDJSON, exposes a few read-only data endpoints, and serves ../frontend."""
 
 from __future__ import annotations
 
 import json
 import uuid
-from pathlib import Path
-
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -17,9 +15,9 @@ from airport_agent.config import settings
 from airport_agent.data.sources import nas_status
 from airport_agent.data.store import DataUnavailable
 
-STATIC = Path(__file__).parent / "static"
+FRONTEND = settings.frontend_dir
 app = FastAPI(title="Airport Investment Intelligence")
-app.mount("/static", StaticFiles(directory=STATIC), name="static")
+app.mount("/assets", StaticFiles(directory=FRONTEND / "assets"), name="assets")
 SESSIONS: dict[str, Session] = {}
 
 
@@ -30,7 +28,7 @@ class ChatRequest(BaseModel):
 
 @app.get("/")
 def index() -> FileResponse:
-    return FileResponse(STATIC / "index.html")
+    return FileResponse(FRONTEND / "index.html")
 
 
 @app.get("/api/info")

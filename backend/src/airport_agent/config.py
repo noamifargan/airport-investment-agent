@@ -6,7 +6,8 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]  # backend/
+REPO_ROOT = PROJECT_ROOT.parent
 PACKAGE_DIR = Path(__file__).resolve().parent
 SNAPSHOT_DIR = PACKAGE_DIR / "snapshot"
 
@@ -39,6 +40,9 @@ class Settings:
         default_factory=lambda: Path(os.environ.get("AIRPORT_AGENT_DATA_DIR", PROJECT_ROOT / "data")).resolve()
     )
     http_timeout: float = field(default_factory=lambda: float(os.environ.get("HTTP_TIMEOUT", "60")))
+    frontend_dir: Path = field(
+        default_factory=lambda: Path(os.environ.get("AIRPORT_AGENT_FRONTEND_DIR", REPO_ROOT / "frontend")).resolve()
+    )
 
     @property
     def cache_dir(self) -> Path:

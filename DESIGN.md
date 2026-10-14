@@ -19,6 +19,10 @@ deterministic logic, and uses a **local LLM (Ollama)** only to choose tools and 
    CSV (HTTP)    Socrata API            TranStats download  TranStats ZIP      Socrata API        live XML API
 ```
 
+**Code layout.** `backend/` is the Python project: data connectors, analytics, the agent and the FastAPI server. Module
+paths below are relative to `backend/src/airport_agent/`. `frontend/` is the static web page (HTML, CSS, JavaScript, no
+build step), which the API server also serves.
+
 **Data layer.** Every source goes through one fetch-with-fallback store (`data/store.py`). The order is:
 1. A disk-cache copy that is still within its time-to-live.
 2. A **live API call**.

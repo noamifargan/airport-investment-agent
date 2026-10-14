@@ -67,7 +67,7 @@ def main() -> None:
     elif args.command == "serve":
         import uvicorn
 
-        uvicorn.run("airport_agent.web.app:app", host=args.host, port=args.port)
+        uvicorn.run("airport_agent.api.app:app", host=args.host, port=args.port)
 
 
 if __name__ == "__main__":
