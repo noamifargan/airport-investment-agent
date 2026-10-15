@@ -6,6 +6,8 @@ FAA and OurAirports data through their APIs, scores airports deterministically, 
 **Ollama**.
 
 See **[DESIGN.md](DESIGN.md)** for the scoring methodology, tradeoffs and where AI is used.
+Attached is a link to a video showing the app in action.  
+https://drive.google.com/file/d/1vuiD3Hdi9GiufUs-c-L6ZSkWF5Ff5bsm/view?usp=sharing
 
 ## Setup
 
